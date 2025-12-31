@@ -12,11 +12,10 @@ const getPartyKitHost = () => {
   const envHost = process.env.NEXT_PUBLIC_PARTYKIT_HOST;
   if (envHost) return envHost;
 
-  // Default to same host with /party path in production
-  // Explicitly set ws:// or wss:// based on page protocol
+  // Default to same host in production
+  // nginx proxies /parties/ directly to partykit
   if (process.env.NODE_ENV === 'production') {
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${wsProtocol}//${window.location.host}/party`;
+    return window.location.host;
   }
 
   return 'localhost:1999';
