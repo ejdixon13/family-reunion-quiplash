@@ -14,9 +14,8 @@ const getPartyKitHost = () => {
 
   // Default to same host in production
   // nginx proxies /parties/ directly to partykit
-  // Explicitly prefix with ws:// to force non-secure WebSocket
   if (process.env.NODE_ENV === 'production') {
-    return `ws://${window.location.host}`;
+    return window.location.host;
   }
 
   return 'localhost:1999';
@@ -57,10 +56,14 @@ export function usePartySocket(
 
   useEffect(() => {
     const host = getPartyKitHost();
+    const isProduction = process.env.NODE_ENV === 'production';
     const ws = new PartySocket({
       host,
       room: roomId,
       query: options.isHost ? { host: 'true' } : {},
+      // Force ws:// in production since we don't have SSL configured
+      // PartySocket defaults to wss for non-local hosts
+      protocol: isProduction ? 'ws' : undefined,
     });
 
     ws.addEventListener('open', () => {
