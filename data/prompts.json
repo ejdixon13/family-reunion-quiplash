@@ -1,0 +1,937 @@
+{
+  "categories": [
+    {
+      "id": "burns_roasts",
+      "name": "Burns & Roasts",
+      "description": "Sibling teasing, playful insults, and family banter",
+      "icon": "🔥"
+    },
+    {
+      "id": "family_traditions",
+      "name": "Family Traditions",
+      "description": "Holidays, reunions, and inside jokes",
+      "icon": "🏠"
+    },
+    {
+      "id": "travel_adventures",
+      "name": "Travel & Adventures",
+      "description": "Hong Kong, Maine, Disneyland, Spain, and more",
+      "icon": "✈️"
+    },
+    {
+      "id": "what_would_they_say",
+      "name": "What Would They Say?",
+      "description": "Impersonate family members",
+      "icon": "💬"
+    },
+    {
+      "id": "fill_in_blank",
+      "name": "Fill in the Blank",
+      "description": "Complete the quote or finish the thought",
+      "icon": "✏️"
+    },
+    {
+      "id": "pop_culture_sports",
+      "name": "Pop Culture & Sports",
+      "description": "Movies, UofA basketball, and games",
+      "icon": "🏀"
+    }
+  ],
+  "prompts": [
+    {
+      "id": "burns-001",
+      "category": "burns_roasts",
+      "prompt": "Complete Corey's burn: 'Pixel = ______'",
+      "context": {
+        "snippet": "Eric Dixon: Got a pixel 7\nCorey Lowe: Lame\nCorey Lowe: Pixel = lameixel\nCorey Lowe: Burn",
+        "date": "11/1/22",
+        "participants": ["Eric Dixon", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "burns-002",
+      "category": "burns_roasts",
+      "prompt": "Eric's comeback after being roasted about his phone: 'iPhone = ______'",
+      "context": {
+        "snippet": "Corey Lowe: Pixel = lameixel\nEric Dixon: Iphone = lame-i-phone\nEric Dixon: Man, it's even more fun to burn than the pixel is",
+        "date": "11/1/22",
+        "participants": ["Eric Dixon", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "burns-003",
+      "category": "burns_roasts",
+      "prompt": "Why can't Eric make it to CabinCon?",
+      "context": {
+        "snippet": "Corey Lowe: I guess we'll have to see who wins the lame contest at CabinCon Eric!\nEric Dixon: I won that one already, since I'm not going 😞",
+        "date": "11/1/22",
+        "participants": ["Eric Dixon", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "burns-004",
+      "category": "burns_roasts",
+      "prompt": "What did Corey accidentally send to the wrong chat?",
+      "context": {
+        "snippet": "Corey Lowe: Watch 13 Lives on Amazon with Viggo\nCorey Lowe: It's great\nCorey Lowe: Meant for my family chat\nCorey Lowe: But still watch it",
+        "date": "12/18/22",
+        "participants": ["Corey Lowe"]
+      }
+    },
+    {
+      "id": "burns-005",
+      "category": "burns_roasts",
+      "prompt": "What's Corey's response when someone asks how many people are coming?",
+      "context": {
+        "snippet": "Lori: If everyone can let me know how many in each family is coming for lunch\nCorey Lowe: 27 on our end!",
+        "date": "4/20/24",
+        "participants": ["Lori Alarcon", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "burns-006",
+      "category": "burns_roasts",
+      "prompt": "What did Mase call Mindy's relationship with animals?",
+      "context": {
+        "snippet": "Chris Bro: Maybe we can convince Mindy to go as well\nMase: Nah, Mindy hates animals🤣\nCorey Lowe: She kills every one she can!\nMase: I mean, not intentionally, but her history of suspicious animal deaths is hard to ignore",
+        "date": "10/28/22",
+        "participants": ["Chris Bro", "Mase", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "burns-007",
+      "category": "burns_roasts",
+      "prompt": "Corey's description of Eric's AI birthday picture for Erin:",
+      "context": {
+        "snippet": "Corey Lowe: The AI really didn't capture her right Eric\nMares Eatoats: Happy birthday Erin!! I hope Eric's AI can do better than Corey's post of his high school picture he posted of himself",
+        "date": "4/18/24",
+        "participants": ["Corey Lowe", "Mares Eatoats"]
+      }
+    },
+    {
+      "id": "burns-008",
+      "category": "burns_roasts",
+      "prompt": "What did Corey tell Aria to spell for the spelling bee?",
+      "context": {
+        "snippet": "Erin Wifey: [sends spelling bee photo]\nCorey Lowe: Ask her to spell injury prone and if she doesn't spell it E-R-I-C…then she's out!",
+        "date": "2/12/25",
+        "participants": ["Erin Wifey", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "burns-009",
+      "category": "burns_roasts",
+      "prompt": "Mase's response when Lori said they can't make it:",
+      "context": {
+        "snippet": "Lori Alarcon: We won't be able to make it this Sunday- give Wes and Gene our best!\nMase: Ahh dang, you'll be missed. I'll make sure to give Wes and Gene your worst since you won't be here\nLori Alarcon: A predictable Mason thing to say…🤗",
+        "date": "2/6/25",
+        "participants": ["Lori Alarcon", "Mase"]
+      }
+    },
+    {
+      "id": "burns-010",
+      "category": "burns_roasts",
+      "prompt": "What did Eric sing about his rivalry with Corey?",
+      "context": {
+        "snippet": "Eric Dixon: You're pretty great Corey. I don't care what Morgan says about you\nCorey Lowe: I had a hard time saying something nice about your lame guitar playing but it's Christmas after all",
+        "date": "12/26/22",
+        "participants": ["Eric Dixon", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "burns-011",
+      "category": "burns_roasts",
+      "prompt": "What was Corey's birthday wish for 'Enron'?",
+      "context": {
+        "snippet": "Corey Lowe: Happy Birthday Enron:) I hope it's a great one!\n[He meant Erin]",
+        "date": "4/18/25",
+        "participants": ["Corey Lowe"]
+      }
+    },
+    {
+      "id": "burns-012",
+      "category": "burns_roasts",
+      "prompt": "What did Mares say when she saw Corey's face in a group photo?",
+      "context": {
+        "snippet": "Lori Alarcon: The face Eric is making is familiar…\nMase: All faces look normal\nMares Eatoats: Not Corey's",
+        "date": "3/3/23",
+        "participants": ["Lori Alarcon", "Mase", "Mares Eatoats"]
+      }
+    },
+    {
+      "id": "burns-013",
+      "category": "burns_roasts",
+      "prompt": "Eric's gift for Mase: Happy ______ birthday!",
+      "context": {
+        "snippet": "Eric Dixon: Happy friggin birthday to the lesser in stature (and girth) Mase!",
+        "date": "5/25/24",
+        "participants": ["Eric Dixon"]
+      }
+    },
+    {
+      "id": "burns-014",
+      "category": "burns_roasts",
+      "prompt": "What did Mares say about Damian sharing his AI photos?",
+      "context": {
+        "snippet": "Damian K Y: It is an AI thing I'm trying. Some people say it is risky to use it for privacy reasons. But I just find out that my privacy is more at risk just sending things to Maryann",
+        "date": "12/16/22",
+        "participants": ["Damian K Y"]
+      }
+    },
+    {
+      "id": "burns-015",
+      "category": "burns_roasts",
+      "prompt": "What did Mogey say when Mindy's autocorrect failed?",
+      "context": {
+        "snippet": "Mindy: All 7 of us will be there! We would miss it!\nMogey: Wow that's really rude Mindy\nMindy: Wouldn't miss it! 😂 Not sure if that was my phone or me!",
+        "date": "5/5/25",
+        "participants": ["Mindy Montgomery-Dixon", "Mogey"]
+      }
+    },
+    {
+      "id": "burns-016",
+      "category": "burns_roasts",
+      "prompt": "When Corey was recovering, Mares texted:",
+      "context": {
+        "snippet": "Mindy: Tell him we love him!\nMares Eatoats: Tell him I think it's time he got out of bed",
+        "date": "4/22/25",
+        "participants": ["Mindy Montgomery-Dixon", "Mares Eatoats"]
+      }
+    },
+    {
+      "id": "burns-017",
+      "category": "burns_roasts",
+      "prompt": "What did Mase text as his birthday wish for Tyler?",
+      "context": {
+        "snippet": "Mase: Hppy brthdy Tylr!!!!!!",
+        "date": "5/20/25",
+        "participants": ["Mase"]
+      }
+    },
+    {
+      "id": "burns-018",
+      "category": "burns_roasts",
+      "prompt": "Chris's Harry Potter spell for Grayson's birthday... that he took back:",
+      "context": {
+        "snippet": "Chris Bro: Stupefy\nSectum Sempra\nCrucio\nImperio\nAvada kedavra\nChris Bro: Actually I take back the last 6",
+        "date": "6/23/25",
+        "participants": ["Chris Bro"]
+      }
+    },
+    {
+      "id": "burns-019",
+      "category": "burns_roasts",
+      "prompt": "What did Mase say when Corey arrived late?",
+      "context": {
+        "snippet": "Corey Lowe: Pulling in!\nMase: Sorry man, you're late and the food is all gone",
+        "date": "2/9/25",
+        "participants": ["Corey Lowe", "Mase"]
+      }
+    },
+    {
+      "id": "burns-020",
+      "category": "burns_roasts",
+      "prompt": "What did Eric compare Erin's coughing to?",
+      "context": {
+        "snippet": "Eric Dixon: she coughs so hard it sounds like she's trying to cough up her toenail",
+        "date": "5/10/25",
+        "participants": ["Eric Dixon"]
+      }
+    },
+
+    {
+      "id": "trad-001",
+      "category": "family_traditions",
+      "prompt": "The password to the family AirBnB is ______",
+      "context": {
+        "snippet": "Eric Dixon: The passcode is: 885522\nCorey Lowe: Does anyone have the WiFi password?\nMogey: Can we claim the master bedroom?",
+        "date": "4/5/24",
+        "participants": ["Eric Dixon", "Corey Lowe", "Mogey"]
+      }
+    },
+    {
+      "id": "trad-002",
+      "category": "family_traditions",
+      "prompt": "The Dixon family's classic birthday dessert is:",
+      "context": {
+        "snippet": "Lori Alarcon: Ah the classic Dixon dessert- unfrosted angel food cake with berries and Breyers ice cream ❤️\nMindy: You know it! It's Mason's request every birthday and Father's Day.",
+        "date": "1/18/23",
+        "participants": ["Lori Alarcon", "Mindy Montgomery-Dixon"]
+      }
+    },
+    {
+      "id": "trad-003",
+      "category": "family_traditions",
+      "prompt": "Dale's secret COVID cure recipe includes:",
+      "context": {
+        "snippet": "Modge Podge: Dale was sick last week, but his health plan of Coke and hash browns fried in plenty of olive oil got him back in the saddle pretty quickly",
+        "date": "6/17/25",
+        "participants": ["Modge Podge"]
+      }
+    },
+    {
+      "id": "trad-004",
+      "category": "family_traditions",
+      "prompt": "What does Modge Podge always end her messages with?",
+      "context": {
+        "snippet": "Modge Podge: Happy Birthday Morgan ❤️\nModge Podge: Love you!! ❣️❣️❣️",
+        "date": "Various",
+        "participants": ["Modge Podge"]
+      }
+    },
+    {
+      "id": "trad-005",
+      "category": "family_traditions",
+      "prompt": "The family group chat name is:",
+      "context": {
+        "snippet": "Group creator created group \"pwr ofthe dixons combined\"",
+        "date": "10/7/13",
+        "participants": ["Group creator"]
+      }
+    },
+    {
+      "id": "trad-006",
+      "category": "family_traditions",
+      "prompt": "Morgan's famous phrase when hosting: 'It's Christmas or ______!'",
+      "context": {
+        "snippet": "Corey Lowe: Morgan says, \"It's Christmas or norhing!!\"\nCorey Lowe: *nothing\nCorey Lowe: Her words not mine\nCorey Lowe: She did say Norhing",
+        "date": "12/12/22",
+        "participants": ["Corey Lowe"]
+      }
+    },
+    {
+      "id": "trad-007",
+      "category": "family_traditions",
+      "prompt": "What do Chris and Andrea always bring to family gatherings?",
+      "context": {
+        "snippet": "Mogey: I nominate Andrea again for mashed potatoes! They were delicious and we might need way more this time!\nChris Bro: Andrea will bring more mashed potatoes since they were so quickly devoured last time",
+        "date": "12/20/24",
+        "participants": ["Mogey", "Chris Bro"]
+      }
+    },
+    {
+      "id": "trad-008",
+      "category": "family_traditions",
+      "prompt": "Mindy's family nickname is:",
+      "context": {
+        "snippet": "Lori Alarcon: Happy Birthday Mindel!!🎉🎂\nCorey Lowe: I hope it was Mindelicious!",
+        "date": "4/26/24",
+        "participants": ["Lori Alarcon", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "trad-009",
+      "category": "family_traditions",
+      "prompt": "What's the only acceptable reason to miss a family gathering?",
+      "context": {
+        "snippet": "Mindy: Mindy's sister is coming in from Colorado that weekend\n[Various excuses throughout the years include: soccer tournaments, dunes trips, work, weddings, and being in Hong Kong]",
+        "date": "Various",
+        "participants": ["Various"]
+      }
+    },
+    {
+      "id": "trad-010",
+      "category": "family_traditions",
+      "prompt": "The pickleball paddles ended up in the wrong van because:",
+      "context": {
+        "snippet": "Chris Bro: We left behind 5 Pickleball paddles and 3 Pickleballs\nMase: They are in Morgan's garage. You put them in my van on accident. My grand plan to confuse you by parking right next to your van worked🤣... Sorry",
+        "date": "12/27/22",
+        "participants": ["Chris Bro", "Mase"]
+      }
+    },
+    {
+      "id": "trad-011",
+      "category": "family_traditions",
+      "prompt": "Mogey is holding your items ransom. To get them back you must:",
+      "context": {
+        "snippet": "Mogey: Chris we are holding them ransom. You will have to play us for them\nChris Bro: Game on! Your court or ours?",
+        "date": "12/27/22",
+        "participants": ["Mogey", "Chris Bro"]
+      }
+    },
+    {
+      "id": "trad-012",
+      "category": "family_traditions",
+      "prompt": "When the whole family texts 'Merry Christmas', Mase texts:",
+      "context": {
+        "snippet": "[Everyone]: Happy New Year!!!\nMase: Merry New Year!!!!",
+        "date": "1/1/25",
+        "participants": ["Mase"]
+      }
+    },
+    {
+      "id": "trad-013",
+      "category": "family_traditions",
+      "prompt": "What did Modge Podge accidentally call Damian on his birthday?",
+      "context": {
+        "snippet": "Modge Podge: Happy Birthday Axel 🥰🎉\nMogey: Can't be axel's birthday? He was born a week after Ava\nModge Podge: You are right 😂 I meant Happy Birthday Damian",
+        "date": "7/3/25",
+        "participants": ["Modge Podge", "Mogey"]
+      }
+    },
+    {
+      "id": "trad-014",
+      "category": "family_traditions",
+      "prompt": "The family dinner menu when Mindy hosts is always:",
+      "context": {
+        "snippet": "Mindy: Ok, tomorrow we will plan on eating early around 4. We plan on doing a taco bar!",
+        "date": "2/8/25",
+        "participants": ["Mindy Montgomery-Dixon"]
+      }
+    },
+    {
+      "id": "trad-015",
+      "category": "family_traditions",
+      "prompt": "Chris's preferred language for birthday wishes:",
+      "context": {
+        "snippet": "Chris Bro: ¡Feliz Navidad!\nChris Bro: ¡Feliz Cumpleaños!\nChris Bro: ¡Felicidades!",
+        "date": "Various",
+        "participants": ["Chris Bro"]
+      }
+    },
+
+    {
+      "id": "travel-001",
+      "category": "travel_adventures",
+      "prompt": "Mares' excuse for not coming to Christmas:",
+      "context": {
+        "snippet": "Mares Eatoats: Btw sad to say fam we will not be joining for Christmas this year. Tickets are sitting at a pretty 2000 usd a ticket currently so we will be having Christmas in HK this year.",
+        "date": "11/3/22",
+        "participants": ["Mares Eatoats"]
+      }
+    },
+    {
+      "id": "travel-002",
+      "category": "travel_adventures",
+      "prompt": "What time zone is Mares texting from at 3 AM?",
+      "context": {
+        "snippet": "Damian K Y: I woke up at 1am in Hong Kong to wish happy birthday to you Morgan.\nDamian K Y: Well, and maybe also because Arlet is crying.",
+        "date": "4/4/24",
+        "participants": ["Damian K Y"]
+      }
+    },
+    {
+      "id": "travel-003",
+      "category": "travel_adventures",
+      "prompt": "Eric described their Arizona visits as '______ Dixon season'",
+      "context": {
+        "snippet": "Eric Dixon: Hey fam, it's Maine Dixon season again! And we'll be in a city near you starting the 28th!\nMase: My favorite Maine Dixons, back again for round 2!",
+        "date": "2/9/23",
+        "participants": ["Eric Dixon", "Mase"]
+      }
+    },
+    {
+      "id": "travel-004",
+      "category": "travel_adventures",
+      "prompt": "Mares' comparison of Chinese food in Hong Kong vs America:",
+      "context": {
+        "snippet": "Mares Eatoats: Chinese food in the states is SOO much better than Chinese food here!\nCorey Lowe: Duh\nDamian K Y: Chinese food here is not Chinese food. Is just food",
+        "date": "1/28/23",
+        "participants": ["Mares Eatoats", "Corey Lowe", "Damian K Y"]
+      }
+    },
+    {
+      "id": "travel-005",
+      "category": "travel_adventures",
+      "prompt": "What was on Julian's bucket list?",
+      "context": {
+        "snippet": "Lori Alarcon: Being in Disneyland on Christmas Day has been on Julian's bucket list for years and we are trying to make that happen this year!",
+        "date": "7/15/24",
+        "participants": ["Lori Alarcon"]
+      }
+    },
+    {
+      "id": "travel-006",
+      "category": "travel_adventures",
+      "prompt": "When the family planned to go to Spain, Chris said:",
+      "context": {
+        "snippet": "Chris Bro: Maybe it's time to visit Portugal again…\nMares: And what happened to being in Spain??\nEric: Mares, if you were in Spain during Maine winters we'd definitely go there too.",
+        "date": "11/3/22 - 2/9/23",
+        "participants": ["Chris Bro", "Mares Eatoats", "Eric Dixon"]
+      }
+    },
+    {
+      "id": "travel-007",
+      "category": "travel_adventures",
+      "prompt": "The Princess Chicken at Great Village is:",
+      "context": {
+        "snippet": "Mogey: I'm about to see if the Princess chicken is as good as I remember\nMogey: Princess chicken is still the very best Chinese food I've ever eaten.",
+        "date": "1/28/23",
+        "participants": ["Mogey"]
+      }
+    },
+    {
+      "id": "travel-008",
+      "category": "travel_adventures",
+      "prompt": "Easton skipped the zoo because:",
+      "context": {
+        "snippet": "Mindy: Did Easton not go?\nMogey: He's hanging out with our friend's son today because he didn't want to do the zoo",
+        "date": "3/15/25",
+        "participants": ["Mindy Montgomery-Dixon", "Mogey"]
+      }
+    },
+    {
+      "id": "travel-009",
+      "category": "travel_adventures",
+      "prompt": "Chris guessed the temple location by saying:",
+      "context": {
+        "snippet": "Chris Bro: Can anyone guess? [temple photo]\nCorey Lowe: Houston, right?\nChris Bro: Good try Corey\nCorey Lowe: Boston\nChris Bro: Nice job Corey!",
+        "date": "6/19/24",
+        "participants": ["Chris Bro", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "travel-010",
+      "category": "travel_adventures",
+      "prompt": "Mares finally landed in HK and said:",
+      "context": {
+        "snippet": "Mares Eatoats: Finally landed in HK after some flight delays. Loved seeing you all this holiday season. Thanks so much for everyone letting me crash at your various places and being an amazing family.",
+        "date": "1/5/25",
+        "participants": ["Mares Eatoats"]
+      }
+    },
+    {
+      "id": "travel-011",
+      "category": "travel_adventures",
+      "prompt": "Isa's mission call destination:",
+      "context": {
+        "snippet": "Chris Bro: For anyone that didn't see, she is going to serve in Retalhuleu, Guatemala\nChris Bro: She reports to MTC el 5 de mayo\nCorey Lowe: Cinco de Mayo!",
+        "date": "1/26/25",
+        "participants": ["Chris Bro", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "travel-012",
+      "category": "travel_adventures",
+      "prompt": "What Broadway shows did Chris see in NYC?",
+      "context": {
+        "snippet": "Mindy: Did you guys go to a Broadway show?\nChris Bro: Hadestown and \"Harry Potter and the cursed child\".",
+        "date": "3/16/25",
+        "participants": ["Mindy Montgomery-Dixon", "Chris Bro"]
+      }
+    },
+
+    {
+      "id": "say-001",
+      "category": "what_would_they_say",
+      "prompt": "What would Modge Podge text at 11 PM on a weeknight?",
+      "context": {
+        "snippet": "Modge Podge: HAPPY NEW YEAR ALL YOU WONDERFUL PEOPLE ❣️🥰💕\nModge Podge: Happy Birthday lovely Morgan 💕\n[Always includes heart emojis and encouraging words]",
+        "date": "Various",
+        "participants": ["Modge Podge"]
+      }
+    },
+    {
+      "id": "say-002",
+      "category": "what_would_they_say",
+      "prompt": "What would Mase say if asked to bring a dish to dinner?",
+      "context": {
+        "snippet": "Modge Podge: How about the frame - or under bed trundle???\nMase: Nah, just need the mattress",
+        "date": "1/22/25",
+        "participants": ["Modge Podge", "Mase"]
+      }
+    },
+    {
+      "id": "say-003",
+      "category": "what_would_they_say",
+      "prompt": "What would Chris text after UofA wins a big game?",
+      "context": {
+        "snippet": "Chris Bro: In the process of blowing out the Sun Devils right now\nMogey: Boo\nCorey Lowe: Nobody cares",
+        "date": "2/17/24",
+        "participants": ["Chris Bro", "Mogey", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "say-004",
+      "category": "what_would_they_say",
+      "prompt": "What would Eric's creative birthday message look like?",
+      "context": {
+        "snippet": "Eric Dixon: H\n   A\n      P\n        P\n          Y\nB\n  I\n   R\n     T\n       H\n          D\n            A\n               Y\nLori.",
+        "date": "11/19/22",
+        "participants": ["Eric Dixon"]
+      }
+    },
+    {
+      "id": "say-005",
+      "category": "what_would_they_say",
+      "prompt": "What would Damian say when Mares shares his photos?",
+      "context": {
+        "snippet": "Damian K Y: I just find out that my privacy is more at risk just sending things to Maryann",
+        "date": "12/16/22",
+        "participants": ["Damian K Y"]
+      }
+    },
+    {
+      "id": "say-006",
+      "category": "what_would_they_say",
+      "prompt": "What would Lori respond with when something exciting happens?",
+      "context": {
+        "snippet": "Lori Alarcon: 🎉🎉🎉🎉\nLori Alarcon: ❤️❤️\n[Lori is the emoji queen]",
+        "date": "Various",
+        "participants": ["Lori Alarcon"]
+      }
+    },
+    {
+      "id": "say-007",
+      "category": "what_would_they_say",
+      "prompt": "What would Morgan say when asked to host ANOTHER event?",
+      "context": {
+        "snippet": "Chris Bro: Morgan and Corey, would you be open to hosting a family dinner?\nMogey: Let me chat with Corey on that...",
+        "date": "2/2/25",
+        "participants": ["Chris Bro", "Mogey"]
+      }
+    },
+    {
+      "id": "say-008",
+      "category": "what_would_they_say",
+      "prompt": "Julian's comment during Corey's hospital stay:",
+      "context": {
+        "snippet": "Lori Alarcon: Julian says \" I wish you could have seen Montana\"\nCorey Lowe: Some things don't react to well to bullets",
+        "date": "4/19/25",
+        "participants": ["Lori Alarcon", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "say-009",
+      "category": "what_would_they_say",
+      "prompt": "What would Mares say when she's ahead of everyone in time zones?",
+      "context": {
+        "snippet": "Mares Eatoats: I've been in 2023 for quite some time now\nCorey Lowe: Mares is better than us\nMares Eatoats: Always",
+        "date": "1/1/23",
+        "participants": ["Mares Eatoats", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "say-010",
+      "category": "what_would_they_say",
+      "prompt": "What excuse would Corey use when he can't make it to an event?",
+      "context": {
+        "snippet": "Mogey: What's Everyone doing for thanksgiving?\nCorey Lowe: I'm busy",
+        "date": "11/5/22",
+        "participants": ["Mogey", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "say-011",
+      "category": "what_would_they_say",
+      "prompt": "What would Mogey text at midnight?",
+      "context": {
+        "snippet": "Mogey: Hi\nMogey: I miss you\nMogey: So much\nMogey: Blah blah blah\nMogey: Hi\nCorey Lowe: Weird Morgan…weird",
+        "date": "4/19/24",
+        "participants": ["Mogey", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "say-012",
+      "category": "what_would_they_say",
+      "prompt": "What would Eric say about his guitar playing in church?",
+      "context": {
+        "snippet": "Eric Dixon: I considered playing baby got back to see if I could get guitars banned again in the spirit of dad, but little drummer boy won the vote",
+        "date": "12/26/22",
+        "participants": ["Eric Dixon"]
+      }
+    },
+    {
+      "id": "say-013",
+      "category": "what_would_they_say",
+      "prompt": "What would Mindy's autocorrect turn 'wouldn't miss it' into?",
+      "context": {
+        "snippet": "Mindy: All 7 of us will be there! We would miss it!\nMindy: Wouldn't miss it! 😂 Not sure if that was my phone or me!",
+        "date": "5/5/25",
+        "participants": ["Mindy Montgomery-Dixon"]
+      }
+    },
+    {
+      "id": "say-014",
+      "category": "what_would_they_say",
+      "prompt": "What would Corey add to his spell list for Grayson?",
+      "context": {
+        "snippet": "Chris Bro: Wingardium Leviosa... Avada kedavra\nChris Bro: Actually I take back the last 6\nCorey Lowe: And don't forget…\nCorey Lowe: Abra Cadabra",
+        "date": "6/23/25",
+        "participants": ["Chris Bro", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "say-015",
+      "category": "what_would_they_say",
+      "prompt": "What would Eric's text to Jedi about the priesthood say?",
+      "context": {
+        "snippet": "Eric Dixon: We won't be able to make it either, but huge congrats to Jedi on getting the \"real\" force!",
+        "date": "1/4/25",
+        "participants": ["Eric Dixon"]
+      }
+    },
+
+    {
+      "id": "blank-001",
+      "category": "fill_in_blank",
+      "prompt": "Mindy's history of suspicious ______ is hard to ignore.",
+      "context": {
+        "snippet": "Mase: I mean, not intentionally, but her history of suspicious animal deaths is hard to ignore",
+        "date": "10/28/22",
+        "participants": ["Mase"]
+      }
+    },
+    {
+      "id": "blank-002",
+      "category": "fill_in_blank",
+      "prompt": "I woke up at 1am in Hong Kong to wish you happy birthday. Well, and maybe also because ______.",
+      "context": {
+        "snippet": "Damian K Y: I woke up at 1am in Hong Kong to wish happy birthday to you Morgan.\nDamian K Y: Well, and maybe also because Arlet is crying.",
+        "date": "4/4/24",
+        "participants": ["Damian K Y"]
+      }
+    },
+    {
+      "id": "blank-003",
+      "category": "fill_in_blank",
+      "prompt": "Why'd it have to be ______.",
+      "context": {
+        "snippet": "Eric Dixon: Snakes... I hate snakes\nCorey Lowe: Why'd it have to be snakes…\nMares Eatoats: Home alone!!\nLori Alarcon: Nope Indiana Jones",
+        "date": "10/29/22",
+        "participants": ["Eric Dixon", "Corey Lowe", "Mares Eatoats", "Lori Alarcon"]
+      }
+    },
+    {
+      "id": "blank-004",
+      "category": "fill_in_blank",
+      "prompt": "She kills every one she can! - referring to Mindy's relationship with ______.",
+      "context": {
+        "snippet": "Corey Lowe: She kills every one she can!\nMase: her history of suspicious animal deaths is hard to ignore",
+        "date": "10/28/22",
+        "participants": ["Corey Lowe", "Mase"]
+      }
+    },
+    {
+      "id": "blank-005",
+      "category": "fill_in_blank",
+      "prompt": "When I say 'Ich', you say ______.",
+      "context": {
+        "snippet": "Corey Lowe: Reminds me of Sleep Hollow!\nCorey Lowe: When I say \"Ich\", you say…\nLori Alarcon: abod crane…",
+        "date": "3/2/23",
+        "participants": ["Corey Lowe", "Lori Alarcon"]
+      }
+    },
+    {
+      "id": "blank-006",
+      "category": "fill_in_blank",
+      "prompt": "Chinese food in Hong Kong is not Chinese food. It's just ______.",
+      "context": {
+        "snippet": "Damian K Y: Chinese food here is not Chinese food. Is just food",
+        "date": "1/28/23",
+        "participants": ["Damian K Y"]
+      }
+    },
+    {
+      "id": "blank-007",
+      "category": "fill_in_blank",
+      "prompt": "Complete Corey's new phone burn: iPhone = ______.",
+      "context": {
+        "snippet": "Corey Lowe: Pixel = lameixel\nEric Dixon: Iphone = lame-i-phone",
+        "date": "11/1/22",
+        "participants": ["Corey Lowe", "Eric Dixon"]
+      }
+    },
+    {
+      "id": "blank-008",
+      "category": "fill_in_blank",
+      "prompt": "She coughs so hard it sounds like she's trying to cough up her ______.",
+      "context": {
+        "snippet": "Eric Dixon: she coughs so hard it sounds like she's trying to cough up her toenail",
+        "date": "5/10/25",
+        "participants": ["Eric Dixon"]
+      }
+    },
+    {
+      "id": "blank-009",
+      "category": "fill_in_blank",
+      "prompt": "Eric's Spanish for 'Happy Birthday': ______ birthday to el Ax! (Spanish for 'the Ax')",
+      "context": {
+        "snippet": "Eric Dixon: Happy birthday to el Ax! (Spanish for \"the Ax\")\nMares Eatoats: Your Spanish is better than I thought!",
+        "date": "5/13/25",
+        "participants": ["Eric Dixon", "Mares Eatoats"]
+      }
+    },
+    {
+      "id": "blank-010",
+      "category": "fill_in_blank",
+      "prompt": "Mase's Spanish birthday wish: Faylees ______ Damian!!!!",
+      "context": {
+        "snippet": "Mase: Faylees Coomplayanyose Damian!!!!",
+        "date": "7/3/25",
+        "participants": ["Mase"]
+      }
+    },
+    {
+      "id": "blank-011",
+      "category": "fill_in_blank",
+      "prompt": "The family motto: It's Christmas or ______!",
+      "context": {
+        "snippet": "Corey Lowe: Morgan says, \"It's Christmas or norhing!!\"\nCorey Lowe: She did say Norhing",
+        "date": "12/12/22",
+        "participants": ["Corey Lowe"]
+      }
+    },
+    {
+      "id": "blank-012",
+      "category": "fill_in_blank",
+      "prompt": "Mom's liquid diet recipe: ______ through a straw",
+      "context": {
+        "snippet": "Eric Dixon: Our mom has a stellar recipe for the liquid form of spaghetti if you're interested\nMares Eatoats: Eric had a good burger through a straw once too",
+        "date": "5/9/25",
+        "participants": ["Eric Dixon", "Mares Eatoats"]
+      }
+    },
+
+    {
+      "id": "pop-001",
+      "category": "pop_culture_sports",
+      "prompt": "Chris's message after UofA blows out ASU:",
+      "context": {
+        "snippet": "Chris Bro: In the process of blowing out the Sun Devils right now\nMogey: Boo\nCorey Lowe: Nobody cares",
+        "date": "2/17/24",
+        "participants": ["Chris Bro", "Mogey", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "pop-002",
+      "category": "pop_culture_sports",
+      "prompt": "What movie reference did Eric make about snakes?",
+      "context": {
+        "snippet": "Eric Dixon: Snakes... I hate snakes\nCorey Lowe: Why'd it have to be snakes…\nLori Alarcon: Nope Indiana Jones",
+        "date": "10/29/22",
+        "participants": ["Eric Dixon", "Corey Lowe", "Lori Alarcon"]
+      }
+    },
+    {
+      "id": "pop-003",
+      "category": "pop_culture_sports",
+      "prompt": "Eric's joke about guitars in church and Dad:",
+      "context": {
+        "snippet": "Mase: I thought guitar playing was banned in church because of Dad.\nEric Dixon: I considered playing baby got back to see if I could get guitars banned again in the spirit of dad",
+        "date": "12/26/22",
+        "participants": ["Mase", "Eric Dixon"]
+      }
+    },
+    {
+      "id": "pop-004",
+      "category": "pop_culture_sports",
+      "prompt": "The Sleepy Hollow reference: When I say 'Ich', you say ______",
+      "context": {
+        "snippet": "Corey Lowe: Reminds me of Sleepy Hollow!\nCorey Lowe: When I say \"Ich\", you say…\nLori Alarcon: abod crane…",
+        "date": "3/2/23",
+        "participants": ["Corey Lowe", "Lori Alarcon"]
+      }
+    },
+    {
+      "id": "pop-005",
+      "category": "pop_culture_sports",
+      "prompt": "What epic UofA basketball moment did Chris share?",
+      "context": {
+        "snippet": "Chris Bro: In case anyone didnt see Caleb Love's epic overtime forcing 55 foot buzzer beater against the #3 team in the country",
+        "date": "1/28/25",
+        "participants": ["Chris Bro"]
+      }
+    },
+    {
+      "id": "pop-006",
+      "category": "pop_culture_sports",
+      "prompt": "Corey's Zoolander reference about the wedding:",
+      "context": {
+        "snippet": "Mogey: Any special instructions for getting to the highlands?\nCorey Lowe: And why male models?",
+        "date": "4/6/24",
+        "participants": ["Mogey", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "pop-007",
+      "category": "pop_culture_sports",
+      "prompt": "Corey's Harry Potter spell to Eric about his phone:",
+      "context": {
+        "snippet": "Corey Lowe: Well guess what, you're buying a new phone cause….\nCorey Lowe: Expelliarmus!!!\nEric Dixon: Ah crap.. I cracked my screen",
+        "date": "11/1/22",
+        "participants": ["Corey Lowe", "Eric Dixon"]
+      }
+    },
+    {
+      "id": "pop-008",
+      "category": "pop_culture_sports",
+      "prompt": "What game from the family gathering did Morgan find nostalgic?",
+      "context": {
+        "snippet": "Mogey: I looked at the topics and a lot were pretty outdated. But it definitely brought me back to days when Eric had a hint of struggle with his r's and would ask to play",
+        "date": "1/26/25",
+        "participants": ["Mogey"]
+      }
+    },
+    {
+      "id": "pop-009",
+      "category": "pop_culture_sports",
+      "prompt": "Eric's March Madness bracket group password:",
+      "context": {
+        "snippet": "Eric Dixon: [bracket link]\nEric Dixon: password is glhf",
+        "date": "3/17/25",
+        "participants": ["Eric Dixon"]
+      }
+    },
+    {
+      "id": "pop-010",
+      "category": "pop_culture_sports",
+      "prompt": "What did Mogey cast on Grayson for his birthday?",
+      "context": {
+        "snippet": "Mogey: Happy birthday Gray! Expeliarmus!\nEric Dixon: Great... he just dropped all the alarm equipment he was holding",
+        "date": "6/23/25",
+        "participants": ["Mogey", "Eric Dixon"]
+      }
+    },
+    {
+      "id": "pop-011",
+      "category": "pop_culture_sports",
+      "prompt": "What Portugal temple news excited Corey?",
+      "context": {
+        "snippet": "Chris Bro: Exciting to hear that they will be building a temple where Corey served his mission\nCorey Lowe: President Monson said it would be the lighthouse of Europe and that there would be many temples! Now there's two!",
+        "date": "4/6/25",
+        "participants": ["Chris Bro", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "pop-012",
+      "category": "pop_culture_sports",
+      "prompt": "Damian's nickname according to Lori:",
+      "context": {
+        "snippet": "Lori Alarcon: Happy birthday Don Gato!!🎶😺🎉🎂\nMares Eatoats: Voice recording of the song please\nMares Eatoats: Per Damian's request of course",
+        "date": "7/3/25",
+        "participants": ["Lori Alarcon", "Mares Eatoats"]
+      }
+    },
+    {
+      "id": "pop-013",
+      "category": "pop_culture_sports",
+      "prompt": "What Ransom reference did Julian make about Corey's surgery?",
+      "context": {
+        "snippet": "Lori Alarcon: Julian says \" I wish you could have seen Montana\"\nCorey Lowe: Some things don't react to well to bullets",
+        "date": "4/19/25",
+        "participants": ["Lori Alarcon", "Corey Lowe"]
+      }
+    },
+    {
+      "id": "pop-014",
+      "category": "pop_culture_sports",
+      "prompt": "What did Morgan remember about Eric's childhood speech?",
+      "context": {
+        "snippet": "Mogey: it definitely brought me back to days when Eric had a hint of struggle with his r's and would ask to play. As soon as I saw it, I could hear it in my memory",
+        "date": "1/26/25",
+        "participants": ["Mogey"]
+      }
+    },
+    {
+      "id": "pop-015",
+      "category": "pop_culture_sports",
+      "prompt": "The best ride in Disneyland according to Mase:",
+      "context": {
+        "snippet": "Mase: If you get a chance, hit the Buzz lightyear Astro Blaster ride, it's the best ride in Disneyland imo.\nChris Bro: Also a big fan of BLAB! About to go for the second time\nMase: Yesssss!",
+        "date": "11/24/22",
+        "participants": ["Mase", "Chris Bro"]
+      }
+    }
+  ]
+}

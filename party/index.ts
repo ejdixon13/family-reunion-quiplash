@@ -1,0 +1,601 @@
+import type * as Party from "partykit/server";
+import type {
+  GameState,
+  GamePhase,
+  Player,
+  Prompt,
+  Answer,
+  VotingRound,
+  ClientMessage,
+  ServerMessage,
+  GameConfig,
+} from "./types";
+
+// Import prompts - in production this would be fetched
+import promptsData from "../data/prompts.json";
+
+const DEFAULT_CONFIG: GameConfig = {
+  answerTimeSeconds: 60,
+  voteTimeSeconds: 20,
+  resultsTimeSeconds: 8,
+  minPlayers: 3,
+  maxActivePlayers: 8,
+  roundsPerGame: 3,
+};
+
+class QuiplashServer implements Party.Server {
+  constructor(readonly room: Party.Room) {}
+
+  gameState: GameState | null = null;
+  timerId: ReturnType<typeof setInterval> | null = null;
+
+  // Initialize game state
+  initializeGame(): GameState {
+    return {
+      roomId: this.room.id,
+      phase: 'lobby',
+      players: [],
+      selectedCategories: [],
+      currentRound: 0,
+      totalRounds: DEFAULT_CONFIG.roundsPerGame,
+      currentPromptIndex: 0,
+      prompts: [],
+      promptAssignments: {},
+      answers: [],
+      currentVotingRound: null,
+      timer: 0,
+      config: DEFAULT_CONFIG,
+    };
+  }
+
+  // Handle new connections
+  async onConnect(connection: Party.Connection, ctx: Party.ConnectionContext) {
+    // Initialize game if first connection
+    if (!this.gameState) {
+      this.gameState = this.initializeGame();
+    }
+
+    // Check if this is the host (first connection or has host query param)
+    const url = new URL(ctx.request.url);
+    const isHost = url.searchParams.get('host') === 'true';
+
+    // Send current state to new connection
+    this.sendToConnection(connection, {
+      type: 'state_update',
+      state: this.gameState,
+    });
+  }
+
+  // Handle incoming messages
+  async onMessage(message: string, sender: Party.Connection) {
+    if (!this.gameState) {
+      this.gameState = this.initializeGame();
+    }
+
+    try {
+      const msg = JSON.parse(message) as ClientMessage;
+
+      switch (msg.type) {
+        case 'ping':
+          this.sendToConnection(sender, { type: 'pong' });
+          break;
+
+        case 'join':
+          this.handleJoin(sender, msg.playerName);
+          break;
+
+        case 'select_categories':
+          this.handleSelectCategories(sender, msg.categories);
+          break;
+
+        case 'start_game':
+          this.handleStartGame(sender);
+          break;
+
+        case 'submit_answer':
+          this.handleSubmitAnswer(sender, msg.promptId, msg.answer);
+          break;
+
+        case 'submit_vote':
+          this.handleSubmitVote(sender, msg.votedPlayerId);
+          break;
+
+        case 'next_prompt':
+          this.handleNextPrompt(sender);
+          break;
+
+        case 'next_round':
+          this.handleNextRound(sender);
+          break;
+
+        case 'restart_game':
+          this.handleRestartGame(sender);
+          break;
+      }
+    } catch (e) {
+      console.error('Error handling message:', e);
+    }
+  }
+
+  // Handle player joining
+  handleJoin(connection: Party.Connection, playerName: string) {
+    if (!this.gameState) return;
+
+    // Check if player already exists (reconnect)
+    const existingPlayer = this.gameState.players.find(
+      (p) => p.id === connection.id || p.name.toLowerCase() === playerName.toLowerCase()
+    );
+
+    if (existingPlayer) {
+      existingPlayer.id = connection.id;
+      existingPlayer.isConnected = true;
+      this.broadcastState();
+      return;
+    }
+
+    // Determine if player should be audience
+    const activePlayers = this.gameState.players.filter((p) => !p.isAudience);
+    const isAudience = activePlayers.length >= this.gameState.config.maxActivePlayers;
+    const isHost = this.gameState.players.length === 0;
+
+    const player: Player = {
+      id: connection.id,
+      name: playerName,
+      score: 0,
+      isHost,
+      isAudience,
+      isConnected: true,
+    };
+
+    this.gameState.players.push(player);
+    this.broadcastState();
+  }
+
+  // Handle category selection
+  handleSelectCategories(connection: Party.Connection, categories: string[]) {
+    if (!this.gameState) return;
+
+    const player = this.gameState.players.find((p) => p.id === connection.id);
+    if (!player?.isHost) return;
+
+    this.gameState.selectedCategories = categories.slice(0, 3);
+    this.gameState.phase = 'category_select';
+    this.broadcastState();
+  }
+
+  // Handle game start
+  handleStartGame(connection: Party.Connection) {
+    if (!this.gameState) return;
+
+    const player = this.gameState.players.find((p) => p.id === connection.id);
+    if (!player?.isHost) return;
+
+    const activePlayers = this.gameState.players.filter((p) => !p.isAudience);
+    if (activePlayers.length < this.gameState.config.minPlayers) {
+      this.sendToConnection(connection, {
+        type: 'error',
+        message: `Need at least ${this.gameState.config.minPlayers} players to start`,
+      });
+      return;
+    }
+
+    if (this.gameState.selectedCategories.length === 0) {
+      this.sendToConnection(connection, {
+        type: 'error',
+        message: 'Please select at least one category',
+      });
+      return;
+    }
+
+    this.startRound();
+  }
+
+  // Start a new round
+  startRound() {
+    if (!this.gameState) return;
+
+    this.gameState.currentRound++;
+    this.gameState.currentPromptIndex = 0;
+    this.gameState.answers = [];
+
+    // Get prompts for this round's category
+    const categoryIndex = Math.min(
+      this.gameState.currentRound - 1,
+      this.gameState.selectedCategories.length - 1
+    );
+    const categoryId = this.gameState.selectedCategories[categoryIndex];
+
+    // Get all prompts for this category
+    const categoryPrompts = (promptsData.prompts as Prompt[]).filter(
+      (p) => p.category === categoryId
+    );
+
+    // Shuffle and select prompts
+    const shuffled = this.shuffleArray([...categoryPrompts]);
+    const activePlayers = this.gameState.players.filter((p) => !p.isAudience);
+
+    // Each player gets 2 prompts, each prompt assigned to 2 players
+    const promptsNeeded = activePlayers.length;
+    this.gameState.prompts = shuffled.slice(0, promptsNeeded);
+
+    // Assign prompts to players (each prompt goes to 2 players)
+    this.gameState.promptAssignments = {};
+    const playerIds = activePlayers.map((p) => p.id);
+
+    for (let i = 0; i < this.gameState.prompts.length; i++) {
+      const prompt = this.gameState.prompts[i];
+      const player1 = playerIds[i % playerIds.length];
+      const player2 = playerIds[(i + 1) % playerIds.length];
+
+      if (!this.gameState.promptAssignments[player1]) {
+        this.gameState.promptAssignments[player1] = [];
+      }
+      if (!this.gameState.promptAssignments[player2]) {
+        this.gameState.promptAssignments[player2] = [];
+      }
+
+      this.gameState.promptAssignments[player1].push(prompt.id);
+      this.gameState.promptAssignments[player2].push(prompt.id);
+    }
+
+    // Transition to answering phase
+    this.gameState.phase = 'answering';
+    this.broadcastState();
+
+    // Send each player their prompts
+    for (const player of activePlayers) {
+      const promptIds = this.gameState.promptAssignments[player.id] || [];
+      const playerPrompts = this.gameState.prompts.filter((p) =>
+        promptIds.includes(p.id)
+      );
+
+      const conn = this.getConnection(player.id);
+      if (conn) {
+        this.sendToConnection(conn, {
+          type: 'your_prompts',
+          prompts: playerPrompts,
+        });
+      }
+    }
+
+    // Start timer
+    this.startTimer(this.gameState.config.answerTimeSeconds, () => {
+      this.endAnsweringPhase();
+    });
+  }
+
+  // Handle answer submission
+  handleSubmitAnswer(connection: Party.Connection, promptId: string, answerText: string) {
+    if (!this.gameState || this.gameState.phase !== 'answering') return;
+
+    const player = this.gameState.players.find((p) => p.id === connection.id);
+    if (!player || player.isAudience) return;
+
+    // Check if already answered this prompt
+    const existingAnswer = this.gameState.answers.find(
+      (a) => a.promptId === promptId && a.playerId === player.id
+    );
+    if (existingAnswer) return;
+
+    const answer: Answer = {
+      promptId,
+      playerId: player.id,
+      playerName: player.name,
+      text: answerText.trim() || '(No answer)',
+      votes: 0,
+      voterIds: [],
+    };
+
+    this.gameState.answers.push(answer);
+    this.broadcastState();
+
+    // Check if all answers are in
+    const activePlayers = this.gameState.players.filter((p) => !p.isAudience);
+    const totalExpectedAnswers = this.gameState.prompts.length * 2; // 2 answers per prompt
+
+    if (this.gameState.answers.length >= totalExpectedAnswers) {
+      this.clearTimer();
+      this.endAnsweringPhase();
+    }
+  }
+
+  // End answering phase and start voting
+  endAnsweringPhase() {
+    if (!this.gameState) return;
+
+    // Fill in missing answers
+    for (const prompt of this.gameState.prompts) {
+      const promptAnswers = this.gameState.answers.filter(
+        (a) => a.promptId === prompt.id
+      );
+
+      // Find players assigned to this prompt who haven't answered
+      for (const [playerId, promptIds] of Object.entries(this.gameState.promptAssignments)) {
+        if (promptIds.includes(prompt.id)) {
+          const hasAnswered = promptAnswers.some((a) => a.playerId === playerId);
+          if (!hasAnswered) {
+            const player = this.gameState.players.find((p) => p.id === playerId);
+            this.gameState.answers.push({
+              promptId: prompt.id,
+              playerId,
+              playerName: player?.name || 'Unknown',
+              text: '(No answer)',
+              votes: 0,
+              voterIds: [],
+            });
+          }
+        }
+      }
+    }
+
+    this.startVotingRound();
+  }
+
+  // Start voting on a prompt
+  startVotingRound() {
+    if (!this.gameState) return;
+
+    if (this.gameState.currentPromptIndex >= this.gameState.prompts.length) {
+      this.showRoundScores();
+      return;
+    }
+
+    const prompt = this.gameState.prompts[this.gameState.currentPromptIndex];
+    const promptAnswers = this.gameState.answers.filter(
+      (a) => a.promptId === prompt.id
+    );
+
+    if (promptAnswers.length < 2) {
+      // Skip this prompt if not enough answers
+      this.gameState.currentPromptIndex++;
+      this.startVotingRound();
+      return;
+    }
+
+    this.gameState.currentVotingRound = {
+      promptId: prompt.id,
+      prompt,
+      answers: [promptAnswers[0], promptAnswers[1]],
+      votedPlayerIds: [],
+    };
+
+    this.gameState.phase = 'voting';
+    this.broadcastState();
+
+    this.startTimer(this.gameState.config.voteTimeSeconds, () => {
+      this.endVotingRound();
+    });
+  }
+
+  // Handle vote submission
+  handleSubmitVote(connection: Party.Connection, votedPlayerId: string) {
+    if (!this.gameState || this.gameState.phase !== 'voting') return;
+    if (!this.gameState.currentVotingRound) return;
+
+    const voter = this.gameState.players.find((p) => p.id === connection.id);
+    if (!voter) return;
+
+    // Can't vote for your own answer
+    const isOwnAnswer = this.gameState.currentVotingRound.answers.some(
+      (a) => a.playerId === voter.id
+    );
+    if (isOwnAnswer) return;
+
+    // Already voted?
+    if (this.gameState.currentVotingRound.votedPlayerIds.includes(voter.id)) {
+      return;
+    }
+
+    // Record vote
+    const answer = this.gameState.currentVotingRound.answers.find(
+      (a) => a.playerId === votedPlayerId
+    );
+    if (answer) {
+      answer.votes++;
+      answer.voterIds.push(voter.id);
+      this.gameState.currentVotingRound.votedPlayerIds.push(voter.id);
+    }
+
+    this.broadcastState();
+
+    // Check if all eligible voters have voted
+    const eligibleVoters = this.gameState.players.filter((p) => {
+      const isAnswerer = this.gameState!.currentVotingRound!.answers.some(
+        (a) => a.playerId === p.id
+      );
+      return p.isConnected && !isAnswerer;
+    });
+
+    if (this.gameState.currentVotingRound.votedPlayerIds.length >= eligibleVoters.length) {
+      this.clearTimer();
+      this.endVotingRound();
+    }
+  }
+
+  // End voting and show results
+  endVotingRound() {
+    if (!this.gameState || !this.gameState.currentVotingRound) return;
+
+    // Award points
+    const answers = this.gameState.currentVotingRound.answers;
+    for (const answer of answers) {
+      const player = this.gameState.players.find((p) => p.id === answer.playerId);
+      if (player) {
+        // 100 points per vote
+        player.score += answer.votes * 100;
+
+        // Quiplash bonus (all votes)
+        const otherAnswer = answers.find((a) => a.playerId !== answer.playerId);
+        if (otherAnswer && otherAnswer.votes === 0 && answer.votes > 0) {
+          player.score += 250; // Bonus for getting ALL votes
+        }
+      }
+    }
+
+    // Update answers in main array
+    for (const answer of answers) {
+      const idx = this.gameState.answers.findIndex(
+        (a) => a.promptId === answer.promptId && a.playerId === answer.playerId
+      );
+      if (idx >= 0) {
+        this.gameState.answers[idx] = answer;
+      }
+    }
+
+    this.gameState.phase = 'vote_results';
+    this.broadcastState();
+
+    // Auto-advance after showing results
+    this.startTimer(this.gameState.config.resultsTimeSeconds, () => {
+      this.handleNextPrompt(null);
+    });
+  }
+
+  // Move to next prompt
+  handleNextPrompt(connection: Party.Connection | null) {
+    if (!this.gameState) return;
+
+    // Only host can manually advance, or timer auto-advances
+    if (connection) {
+      const player = this.gameState.players.find((p) => p.id === connection.id);
+      if (!player?.isHost) return;
+    }
+
+    this.clearTimer();
+    this.gameState.currentPromptIndex++;
+    this.gameState.currentVotingRound = null;
+    this.startVotingRound();
+  }
+
+  // Show round scores
+  showRoundScores() {
+    if (!this.gameState) return;
+
+    this.gameState.phase = 'round_scores';
+    this.gameState.currentVotingRound = null;
+    this.broadcastState();
+  }
+
+  // Handle next round
+  handleNextRound(connection: Party.Connection) {
+    if (!this.gameState) return;
+
+    const player = this.gameState.players.find((p) => p.id === connection.id);
+    if (!player?.isHost) return;
+
+    if (this.gameState.currentRound >= this.gameState.totalRounds) {
+      this.gameState.phase = 'final_scores';
+      this.broadcastState();
+    } else {
+      this.startRound();
+    }
+  }
+
+  // Handle game restart
+  handleRestartGame(connection: Party.Connection) {
+    if (!this.gameState) return;
+
+    const player = this.gameState.players.find((p) => p.id === connection.id);
+    if (!player?.isHost) return;
+
+    // Reset scores but keep players
+    for (const p of this.gameState.players) {
+      p.score = 0;
+    }
+
+    this.gameState.phase = 'lobby';
+    this.gameState.currentRound = 0;
+    this.gameState.selectedCategories = [];
+    this.gameState.prompts = [];
+    this.gameState.answers = [];
+    this.gameState.currentVotingRound = null;
+    this.gameState.promptAssignments = {};
+
+    this.clearTimer();
+    this.broadcastState();
+  }
+
+  // Handle disconnection
+  onClose(connection: Party.Connection) {
+    if (!this.gameState) return;
+
+    const player = this.gameState.players.find((p) => p.id === connection.id);
+    if (player) {
+      player.isConnected = false;
+      this.broadcastState();
+    }
+  }
+
+  // Helper: Broadcast state to all connections
+  broadcastState() {
+    if (!this.gameState) return;
+
+    const message: ServerMessage = {
+      type: 'state_update',
+      state: this.gameState,
+    };
+
+    this.room.broadcast(JSON.stringify(message));
+  }
+
+  // Helper: Send to specific connection
+  sendToConnection(connection: Party.Connection, message: ServerMessage) {
+    connection.send(JSON.stringify(message));
+  }
+
+  // Helper: Get connection by ID
+  getConnection(id: string): Party.Connection | undefined {
+    for (const conn of this.room.getConnections()) {
+      if (conn.id === id) return conn;
+    }
+    return undefined;
+  }
+
+  // Helper: Start timer
+  startTimer(seconds: number, onComplete: () => void) {
+    this.clearTimer();
+
+    if (!this.gameState) return;
+    this.gameState.timer = seconds;
+    this.broadcastState();
+
+    this.timerId = setInterval(() => {
+      if (!this.gameState) return;
+
+      this.gameState.timer--;
+
+      // Broadcast timer update
+      this.room.broadcast(
+        JSON.stringify({
+          type: 'timer_tick',
+          seconds: this.gameState.timer,
+        } as ServerMessage)
+      );
+
+      if (this.gameState.timer <= 0) {
+        this.clearTimer();
+        onComplete();
+      }
+    }, 1000);
+  }
+
+  // Helper: Clear timer
+  clearTimer() {
+    if (this.timerId) {
+      clearInterval(this.timerId);
+      this.timerId = null;
+    }
+  }
+
+  // Helper: Shuffle array
+  shuffleArray<T>(array: T[]): T[] {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
+}
+
+export default QuiplashServer satisfies Party.Worker;
