@@ -1,7 +1,12 @@
 # PartyKit server
-FROM node:20-alpine
+FROM node:20-slim
 
 WORKDIR /app
+
+# Install required dependencies for workerd
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy package files
 COPY package*.json ./
