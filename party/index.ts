@@ -13,6 +13,7 @@ import type {
 
 // Import prompts - in production this would be fetched
 import promptsData from "../data/prompts.json";
+import { getDummyName, getRandomDummyAnswer } from "./dummyData";
 
 const DEFAULT_CONFIG: GameConfig = {
   answerTimeSeconds: 60,
@@ -28,6 +29,11 @@ class QuiplashServer implements Party.Server {
 
   gameState: GameState | null = null;
   timerId: ReturnType<typeof setInterval> | null = null;
+  dummyCount = 0;
+  // Track host by _pk (client-generated ID) which is stable across reconnects
+  hostPk: string | null = null;
+  // Map connection.id to _pk for lookups
+  connectionToPk: Map<string, string> = new Map();
 
   // Initialize game state
   initializeGame(): GameState {
@@ -55,9 +61,19 @@ class QuiplashServer implements Party.Server {
       this.gameState = this.initializeGame();
     }
 
-    // Check if this is the host (first connection or has host query param)
+    // Extract _pk from query params (client-generated stable ID)
     const url = new URL(ctx.request.url);
+    const pk = url.searchParams.get('_pk');
+    if (pk) {
+      this.connectionToPk.set(connection.id, pk);
+    }
+
+    // Check if this is the host (has host query param)
     const isHost = url.searchParams.get('host') === 'true';
+    if (isHost && pk) {
+      this.hostPk = pk;
+      console.log(`[PartyKit] Host connected with _pk: ${pk}`);
+    }
 
     // Send current state to new connection
     this.sendToConnection(connection, {
@@ -111,6 +127,10 @@ class QuiplashServer implements Party.Server {
         case 'restart_game':
           this.handleRestartGame(sender);
           break;
+
+        case 'add_dummy_players':
+          this.handleAddDummyPlayers(sender, msg.count);
+          break;
       }
     } catch (e) {
       console.error('Error handling message:', e);
@@ -151,12 +171,49 @@ class QuiplashServer implements Party.Server {
     this.broadcastState();
   }
 
+  // Handle adding dummy players for testing
+  handleAddDummyPlayers(connection: Party.Connection, count: number) {
+    if (!this.gameState) return;
+    if (this.gameState.phase !== 'lobby') return;
+    if (!this.isHostConnection(connection)) return;
+
+    const maxToAdd = Math.min(count, 8);
+    for (let i = 0; i < maxToAdd; i++) {
+      const activePlayers = this.gameState.players.filter((p) => !p.isAudience);
+      if (activePlayers.length >= this.gameState.config.maxActivePlayers) break;
+
+      const dummyPlayer: Player = {
+        id: `dummy-${Date.now()}-${this.dummyCount}`,
+        name: getDummyName(this.dummyCount),
+        score: 0,
+        isHost: false,
+        isAudience: false,
+        isConnected: true,
+        isDummy: true,
+      };
+
+      this.dummyCount++;
+      this.gameState.players.push(dummyPlayer);
+    }
+
+    this.broadcastState();
+  }
+
+  // Check if connection is the host (either host page or player with isHost)
+  isHostConnection(connection: Party.Connection): boolean {
+    // Check by _pk (stable across reconnects)
+    const pk = this.connectionToPk.get(connection.id);
+    if (pk && pk === this.hostPk) return true;
+
+    // Also check if player has isHost flag
+    const player = this.gameState?.players.find((p) => p.id === connection.id);
+    return player?.isHost === true;
+  }
+
   // Handle category selection
   handleSelectCategories(connection: Party.Connection, categories: string[]) {
     if (!this.gameState) return;
-
-    const player = this.gameState.players.find((p) => p.id === connection.id);
-    if (!player?.isHost) return;
+    if (!this.isHostConnection(connection)) return;
 
     this.gameState.selectedCategories = categories.slice(0, 3);
     this.gameState.phase = 'category_select';
@@ -166,9 +223,7 @@ class QuiplashServer implements Party.Server {
   // Handle game start
   handleStartGame(connection: Party.Connection) {
     if (!this.gameState) return;
-
-    const player = this.gameState.players.find((p) => p.id === connection.id);
-    if (!player?.isHost) return;
+    if (!this.isHostConnection(connection)) return;
 
     const activePlayers = this.gameState.players.filter((p) => !p.isAudience);
     if (activePlayers.length < this.gameState.config.minPlayers) {
@@ -258,10 +313,46 @@ class QuiplashServer implements Party.Server {
       }
     }
 
+    // Submit answers for dummy players immediately
+    this.submitDummyAnswers();
+
     // Start timer
     this.startTimer(this.gameState.config.answerTimeSeconds, () => {
       this.endAnsweringPhase();
     });
+  }
+
+  // Submit answers for dummy players
+  submitDummyAnswers() {
+    if (!this.gameState) return;
+
+    const dummyPlayers = this.gameState.players.filter(
+      (p) => p.isDummy && !p.isAudience
+    );
+
+    for (const player of dummyPlayers) {
+      const promptIds = this.gameState.promptAssignments[player.id] || [];
+      for (const promptId of promptIds) {
+        // Check if already answered
+        const existingAnswer = this.gameState.answers.find(
+          (a) => a.promptId === promptId && a.playerId === player.id
+        );
+        if (existingAnswer) continue;
+
+        const answer: Answer = {
+          promptId,
+          playerId: player.id,
+          playerName: player.name,
+          text: getRandomDummyAnswer(),
+          votes: 0,
+          voterIds: [],
+        };
+
+        this.gameState.answers.push(answer);
+      }
+    }
+
+    this.broadcastState();
   }
 
   // Handle answer submission
@@ -362,9 +453,60 @@ class QuiplashServer implements Party.Server {
     this.gameState.phase = 'voting';
     this.broadcastState();
 
+    // Schedule dummy votes with a small random delay
+    setTimeout(() => this.submitDummyVotes(), 1000 + Math.random() * 2000);
+
     this.startTimer(this.gameState.config.voteTimeSeconds, () => {
       this.endVotingRound();
     });
+  }
+
+  // Submit votes for dummy players
+  submitDummyVotes() {
+    if (!this.gameState || this.gameState.phase !== 'voting') return;
+    if (!this.gameState.currentVotingRound) return;
+
+    const voting = this.gameState.currentVotingRound;
+    const dummyPlayers = this.gameState.players.filter(
+      (p) => p.isDummy && p.isConnected
+    );
+
+    for (const player of dummyPlayers) {
+      // Skip if already voted
+      if (voting.votedPlayerIds.includes(player.id)) continue;
+
+      // Skip if this player is an answerer
+      const isAnswerer = voting.answers.some((a) => a.playerId === player.id);
+      if (isAnswerer) continue;
+
+      // Pick a random answer to vote for
+      const randomIndex = Math.floor(Math.random() * voting.answers.length);
+      const votedAnswer = voting.answers[randomIndex];
+
+      votedAnswer.votes++;
+      votedAnswer.voterIds.push(player.id);
+      voting.votedPlayerIds.push(player.id);
+    }
+
+    this.broadcastState();
+    this.checkVotingComplete();
+  }
+
+  // Check if all eligible voters have voted
+  checkVotingComplete() {
+    if (!this.gameState || !this.gameState.currentVotingRound) return;
+
+    const eligibleVoters = this.gameState.players.filter((p) => {
+      const isAnswerer = this.gameState!.currentVotingRound!.answers.some(
+        (a) => a.playerId === p.id
+      );
+      return p.isConnected && !isAnswerer;
+    });
+
+    if (this.gameState.currentVotingRound.votedPlayerIds.length >= eligibleVoters.length) {
+      this.clearTimer();
+      this.endVotingRound();
+    }
   }
 
   // Handle vote submission
@@ -397,19 +539,7 @@ class QuiplashServer implements Party.Server {
     }
 
     this.broadcastState();
-
-    // Check if all eligible voters have voted
-    const eligibleVoters = this.gameState.players.filter((p) => {
-      const isAnswerer = this.gameState!.currentVotingRound!.answers.some(
-        (a) => a.playerId === p.id
-      );
-      return p.isConnected && !isAnswerer;
-    });
-
-    if (this.gameState.currentVotingRound.votedPlayerIds.length >= eligibleVoters.length) {
-      this.clearTimer();
-      this.endVotingRound();
-    }
+    this.checkVotingComplete();
   }
 
   // End voting and show results
@@ -456,10 +586,7 @@ class QuiplashServer implements Party.Server {
     if (!this.gameState) return;
 
     // Only host can manually advance, or timer auto-advances
-    if (connection) {
-      const player = this.gameState.players.find((p) => p.id === connection.id);
-      if (!player?.isHost) return;
-    }
+    if (connection && !this.isHostConnection(connection)) return;
 
     this.clearTimer();
     this.gameState.currentPromptIndex++;
@@ -479,9 +606,7 @@ class QuiplashServer implements Party.Server {
   // Handle next round
   handleNextRound(connection: Party.Connection) {
     if (!this.gameState) return;
-
-    const player = this.gameState.players.find((p) => p.id === connection.id);
-    if (!player?.isHost) return;
+    if (!this.isHostConnection(connection)) return;
 
     if (this.gameState.currentRound >= this.gameState.totalRounds) {
       this.gameState.phase = 'final_scores';
@@ -494,9 +619,7 @@ class QuiplashServer implements Party.Server {
   // Handle game restart
   handleRestartGame(connection: Party.Connection) {
     if (!this.gameState) return;
-
-    const player = this.gameState.players.find((p) => p.id === connection.id);
-    if (!player?.isHost) return;
+    if (!this.isHostConnection(connection)) return;
 
     // Reset scores but keep players
     for (const p of this.gameState.players) {
@@ -517,6 +640,9 @@ class QuiplashServer implements Party.Server {
 
   // Handle disconnection
   onClose(connection: Party.Connection) {
+    // Clean up connection mapping
+    this.connectionToPk.delete(connection.id);
+
     if (!this.gameState) return;
 
     const player = this.gameState.players.find((p) => p.id === connection.id);
@@ -595,6 +721,11 @@ class QuiplashServer implements Party.Server {
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     return shuffled;
+  }
+
+  // Handle HTTP requests (required for some environments)
+  async onRequest(req: Party.Request) {
+    return new Response("This is a WebSocket server", { status: 200 });
   }
 }
 
