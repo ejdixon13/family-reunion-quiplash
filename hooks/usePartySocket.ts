@@ -13,14 +13,14 @@ const getPartyKitHost = () => {
   if (envHost) return envHost;
 
   // Default to same host with /party path in production
+  // Explicitly set ws:// or wss:// based on page protocol
   if (process.env.NODE_ENV === 'production') {
-    return `${window.location.host}/party`;
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${wsProtocol}//${window.location.host}/party`;
   }
 
   return 'localhost:1999';
 };
-
-const PARTYKIT_HOST = getPartyKitHost();
 
 interface UsePartySocketOptions {
   isHost?: boolean;
@@ -56,8 +56,9 @@ export function usePartySocket(
   const reconnectAttempts = useRef(0);
 
   useEffect(() => {
+    const host = getPartyKitHost();
     const ws = new PartySocket({
-      host: PARTYKIT_HOST,
+      host,
       room: roomId,
       query: options.isHost ? { host: 'true' } : {},
     });
