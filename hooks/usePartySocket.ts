@@ -14,8 +14,9 @@ const getPartyKitHost = () => {
 
   // Default to same host in production
   // nginx proxies /parties/ directly to partykit
+  // Explicitly prefix with ws:// to force non-secure WebSocket
   if (process.env.NODE_ENV === 'production') {
-    return window.location.host;
+    return `ws://${window.location.host}`;
   }
 
   return 'localhost:1999';
