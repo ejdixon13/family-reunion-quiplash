@@ -86,7 +86,7 @@ export function useTTS(): UseTTSReturn {
   const [volume, setVolume] = useState(1.0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [queueLength, setQueueLength] = useState(0);
-  const [isEnabled, setIsEnabled] = useState(true);
+  const [isEnabled, setIsEnabled] = useState(false); // TTS disabled - using music/SFX instead
 
   // Subscribe to queue state changes
   useEffect(() => {

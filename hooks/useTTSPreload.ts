@@ -90,23 +90,10 @@ export function useTTSPreload(): UseTTSPreloadReturn {
   );
 
   // Pre-generate announcements at game start
+  // TTS disabled - using music/SFX instead
   const startPreloading = useCallback(async () => {
-    if (hasPreloaded.current) return;
-
-    setIsPreloading(true);
-    hasPreloaded.current = true;
-
-    try {
-      await pregenerateGameStart((category, done, total) => {
-        setPreloadProgress(`Loading ${category}: ${done}/${total}`);
-      });
-      setPreloadProgress('Ready!');
-    } catch (error) {
-      console.error('[TTS Preload] Failed:', error);
-      setPreloadProgress('Preload failed');
-    } finally {
-      setIsPreloading(false);
-    }
+    // TTS disabled - skip preloading
+    return;
   }, []);
 
   // Play a pre-generated announcement

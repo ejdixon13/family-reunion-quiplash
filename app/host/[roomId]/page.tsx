@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePartySocket } from '@/hooks/usePartySocket';
 import { useTTS } from '@/hooks/useTTS';
 import { useTTSPreload } from '@/hooks/useTTSPreload';
+import { useAudio, getMusicForPhase } from '@/hooks/useAudio';
 import { QRCodeDisplay } from '@/app/components/QRCodeDisplay';
 import { CategoryPicker } from '@/app/components/CategoryPicker';
 import { PlayerList } from '@/app/components/PlayerList';
@@ -25,6 +26,7 @@ export default function HostPage() {
 
   const tts = useTTS();
   const ttsPreload = useTTSPreload();
+  const audio = useAudio();
 
   const {
     gameState,
@@ -51,6 +53,52 @@ export default function HostPage() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
+
+  // Track previous phase for transition sound effects
+  const previousPhaseRef = useRef<string | null>(null);
+
+  // Play background music based on game phase
+  useEffect(() => {
+    if (!gameState?.phase) return;
+
+    const currentPhase = gameState.phase;
+    const prevPhase = previousPhaseRef.current;
+    previousPhaseRef.current = currentPhase;
+
+    // Get appropriate music for current phase
+    const track = getMusicForPhase(currentPhase);
+    if (track) {
+      audio.playMusic(track);
+    }
+
+    // Play sound effects on phase transitions
+    if (prevPhase && prevPhase !== currentPhase) {
+      switch (currentPhase) {
+        case 'answering':
+          // Game starting - play intro fanfare
+          if (prevPhase === 'lobby' || prevPhase === 'category_select') {
+            audio.playSfx('intro');
+          }
+          break;
+        case 'voting':
+          // Voting phase starting
+          audio.playSfx('suspense');
+          break;
+        case 'vote_results':
+          // Results revealed
+          audio.playSfx('reveal');
+          break;
+        case 'round_scores':
+          // Round complete
+          audio.playSfx('positive');
+          break;
+        case 'final_scores':
+          // Game over - big fanfare
+          audio.playSfx('fanfare');
+          break;
+      }
+    }
+  }, [gameState?.phase, audio]);
 
   // Start preloading TTS when entering lobby (if TTS enabled)
   useEffect(() => {
@@ -150,50 +198,33 @@ export default function HostPage() {
     [gameState?.currentVotingRound?.promptId, ttsPreload, tts]
   );
 
-  // TTS announcement when entering vote_results phase
+  // Sound effects for vote results (Quiplash bonus sound)
   useEffect(() => {
     const currentPromptId = gameState?.currentVotingRound?.promptId;
     const votingRound = gameState?.currentVotingRound;
 
     if (gameState?.phase === 'vote_results' && votingRound && currentPromptId) {
-      // Only announce once per prompt
+      // Only trigger once per prompt
       if (currentPromptId !== announcedPromptId.current) {
         announcedPromptId.current = currentPromptId;
 
-        // Sort answers by votes to find winner
+        // Check for Quiplash (all votes to one answer)
         const sortedAnswers = [...votingRound.answers].sort((a, b) => b.votes - a.votes);
         const winner = sortedAnswers[0];
         const totalVotes = votingRound.answers.reduce((sum, a) => sum + a.votes, 0);
         const isQuiplash = winner && winner.votes === totalVotes && totalVotes > 0;
 
-        // Use pre-generated "votes are in" announcement, then custom for winner
-        (async () => {
-          // Play pre-generated "votes are in"
-          await ttsPreload.playAnnouncement('votesAreIn');
-
-          // Small delay then announce the winning answer
-          setTimeout(async () => {
-            if (winner && winner.votes > 0) {
-              await ttsPreload.playCustomAnnouncement(winner.text, `answer-${currentPromptId}`);
-
-              setTimeout(async () => {
-                if (isQuiplash) {
-                  await ttsPreload.playAnnouncement('quiplash');
-                } else {
-                  await ttsPreload.playCustomAnnouncement(
-                    `${winner.playerName} wins with ${winner.votes} vote${winner.votes !== 1 ? 's' : ''}!`,
-                    `winner-${currentPromptId}`
-                  );
-                }
-              }, 2000);
-            }
-          }, 1500);
-        })();
+        // Play fanfare for Quiplash after a short delay
+        if (isQuiplash) {
+          setTimeout(() => {
+            audio.playSfx('fanfare');
+          }, 500);
+        }
       }
     } else if (gameState?.phase !== 'vote_results') {
       announcedPromptId.current = null;
     }
-  }, [gameState?.phase, gameState?.currentVotingRound, ttsPreload]);
+  }, [gameState?.phase, gameState?.currentVotingRound, audio]);
 
   // Context reveal timing - show after 3 seconds in vote_results phase
   useEffect(() => {
@@ -265,35 +296,28 @@ export default function HostPage() {
           </h1>
           <p className="text-white/60 text-lg font-body">Room: {roomId}</p>
 
-          {/* TTS Controls */}
+          {/* Audio Controls */}
           <div className="flex flex-col items-center gap-2 mt-4">
             <div className="flex justify-center gap-2">
               <button
-                onClick={() => ttsPreload.playAnnouncement('gameIntro')}
-                disabled={tts.isPlaying || ttsPreload.isPreloading}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  tts.isPlaying
-                    ? 'bg-green-500/50 text-white animate-pulse'
-                    : ttsPreload.isPreloading
-                    ? 'bg-yellow-500/50 text-white'
-                    : 'bg-purple-500/80 hover:bg-purple-500 text-white hover:scale-105'
-                }`}
+                onClick={() => audio.playSfx('fanfare')}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-all bg-purple-500/80 hover:bg-purple-500 text-white hover:scale-105"
               >
-                {tts.isPlaying ? '🔊 Playing...' : ttsPreload.isPreloading ? '⏳ Loading...' : '🎤 Test TTS'}
+                🎵 Test Sound
               </button>
               <button
-                onClick={() => tts.setEnabled(!tts.isEnabled)}
+                onClick={() => audio.setMuted(!audio.isMuted)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all hover:scale-105 ${
-                  tts.isEnabled
+                  !audio.isMuted
                     ? 'bg-green-500/80 hover:bg-green-500 text-white'
                     : 'bg-red-500/80 hover:bg-red-500 text-white'
                 }`}
               >
-                {tts.isEnabled ? '🔊 TTS On' : '🔇 TTS Off'}
+                {!audio.isMuted ? '🔊 Sound On' : '🔇 Sound Off'}
               </button>
             </div>
-            {ttsPreload.preloadProgress && (
-              <p className="text-white/50 text-xs">{ttsPreload.preloadProgress}</p>
+            {audio.currentTrack && (
+              <p className="text-white/50 text-xs">Now playing: {audio.currentTrack} music</p>
             )}
           </div>
         </motion.div>
@@ -401,25 +425,20 @@ export default function HostPage() {
                         +5 Bots
                       </button>
                       <button
-                        onClick={() => tts.speakAnnouncement('The votes are in! [laugh] It\'s a Quiplash!')}
-                        disabled={tts.isPlaying}
-                        className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                          tts.isPlaying
-                            ? 'bg-green-500/50 text-green-100'
-                            : 'bg-purple-500/30 hover:bg-purple-500/50 text-purple-100'
-                        }`}
+                        onClick={() => audio.playSfx('intro')}
+                        className="px-3 py-2 bg-purple-500/30 hover:bg-purple-500/50 text-purple-100 rounded-lg text-sm transition-colors"
                       >
-                        {tts.isPlaying ? '🔊 Playing...' : '🎤 Test TTS'}
+                        🎵 Test SFX
                       </button>
                       <button
-                        onClick={() => tts.setEnabled(!tts.isEnabled)}
+                        onClick={() => audio.setMuted(!audio.isMuted)}
                         className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                          tts.isEnabled
+                          !audio.isMuted
                             ? 'bg-green-500/30 hover:bg-green-500/50 text-green-100'
                             : 'bg-red-500/30 hover:bg-red-500/50 text-red-100'
                         }`}
                       >
-                        {tts.isEnabled ? '🔊 TTS On' : '🔇 TTS Off'}
+                        {!audio.isMuted ? '🔊 Audio On' : '🔇 Audio Off'}
                       </button>
                     </div>
                   </motion.div>
