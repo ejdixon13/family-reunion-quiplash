@@ -42,6 +42,11 @@ class QuiplashServer implements Party.Server {
   // In-memory cache of used prompts (loaded from storage on first use)
   usedPromptsByCategory: Record<string, Set<string>> | null = null;
   usedImageFilenames: Set<string> | null = null;
+  // Minimum voting time guard - prevents early round termination
+  minVoteTimeElapsed = false;
+  minVoteTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  // Guard against ending voting round twice
+  votingRoundEnding = false;
 
   // Initialize game state
   initializeGame(): GameState {
@@ -484,8 +489,22 @@ class QuiplashServer implements Party.Server {
     this.gameState.phase = 'voting';
     this.broadcastState();
 
-    // Schedule dummy votes with a small random delay
-    setTimeout(() => this.submitDummyVotes(), 1000 + Math.random() * 2000);
+    // Reset voting round guards
+    this.minVoteTimeElapsed = false;
+    this.votingRoundEnding = false;
+    if (this.minVoteTimeoutId) {
+      clearTimeout(this.minVoteTimeoutId);
+      this.minVoteTimeoutId = null;
+    }
+
+    // Set minimum voting time (prevents early termination when votes come in fast)
+    // Round 3 needs more time since players must review all answers
+    const minVoteTime = isFinalRound ? 10000 : 5000;
+    this.minVoteTimeoutId = setTimeout(() => {
+      this.minVoteTimeElapsed = true;
+      console.log(`[VOTING] Minimum vote time elapsed (${minVoteTime}ms), checking if complete`);
+      this.checkVotingComplete();
+    }, minVoteTime);
 
     // Round 3 gets more voting time (need to review all captions and pick 3)
     const voteTime = isFinalRound
@@ -496,52 +515,6 @@ class QuiplashServer implements Party.Server {
     });
   }
 
-  // Submit votes for dummy players
-  submitDummyVotes() {
-    if (!this.gameState || this.gameState.phase !== 'voting') return;
-    if (!this.gameState.currentVotingRound) return;
-
-    const voting = this.gameState.currentVotingRound;
-    const dummyPlayers = this.gameState.players.filter(
-      (p) => p.isDummy && p.isConnected
-    );
-
-    for (const player of dummyPlayers) {
-      // Skip if already voted
-      if (voting.votedPlayerIds.includes(player.id)) continue;
-
-      // Final round: Multi-vote (3 votes to 3 DIFFERENT answers, not own)
-      if (voting.isFinalRound) {
-        // Get answers this player can vote for (not their own)
-        const eligibleAnswers = voting.answers.filter((a) => a.playerId !== player.id);
-        if (eligibleAnswers.length < 3) continue; // Need at least 3 answers to vote for
-
-        // Shuffle and pick 3 different answers
-        const shuffled = this.shuffleArray([...eligibleAnswers]);
-        const selectedAnswers = shuffled.slice(0, 3);
-
-        for (const answer of selectedAnswers) {
-          answer.votes++;
-          answer.voterIds.push(player.id);
-        }
-      } else {
-        // Normal rounds: single vote, skip if answerer
-        const isAnswerer = voting.answers.some((a) => a.playerId === player.id);
-        if (isAnswerer) continue;
-
-        const randomIndex = Math.floor(Math.random() * voting.answers.length);
-        const votedAnswer = voting.answers[randomIndex];
-        votedAnswer.votes++;
-        votedAnswer.voterIds.push(player.id);
-      }
-
-      voting.votedPlayerIds.push(player.id);
-    }
-
-    this.broadcastState();
-    this.checkVotingComplete();
-  }
-
   // Check if all eligible voters have voted
   checkVotingComplete() {
     if (!this.gameState || !this.gameState.currentVotingRound) return;
@@ -550,6 +523,7 @@ class QuiplashServer implements Party.Server {
 
     const eligibleVoters = this.gameState.players.filter((p) => {
       if (!p.isConnected) return false;
+      if (p.isDummy) return false; // Dummy players don't vote
 
       // Final round: everyone can vote (for others' answers)
       if (isFinalRound) {
@@ -563,7 +537,18 @@ class QuiplashServer implements Party.Server {
       return !isAnswerer;
     });
 
-    if (this.gameState.currentVotingRound.votedPlayerIds.length >= eligibleVoters.length) {
+    const votedCount = this.gameState.currentVotingRound.votedPlayerIds.length;
+    const eligibleCount = eligibleVoters.length;
+
+    console.log(`[VOTING] Check complete: ${votedCount}/${eligibleCount} voted, minTimeElapsed=${this.minVoteTimeElapsed}`);
+
+    // Don't end early if minimum voting time hasn't passed
+    if (!this.minVoteTimeElapsed) {
+      console.log(`[VOTING] Minimum voting time not elapsed yet, waiting...`);
+      return;
+    }
+
+    if (votedCount >= eligibleCount) {
       this.clearTimer();
       this.endVotingRound();
     }
@@ -604,29 +589,56 @@ class QuiplashServer implements Party.Server {
 
   // Handle multi-vote submission (Round 3 only)
   handleSubmitMultiVote(connection: Party.Connection, votes: Record<string, number>) {
-    if (!this.gameState || this.gameState.phase !== 'voting') return;
-    if (!this.gameState.currentVotingRound) return;
-    if (!this.gameState.currentVotingRound.isFinalRound) return;
+    console.log(`[ROUND3] handleSubmitMultiVote called from connection ${connection.id}`);
+    console.log(`[ROUND3] Votes payload: ${JSON.stringify(votes)}`);
+
+    if (!this.gameState || this.gameState.phase !== 'voting') {
+      console.log(`[ROUND3] Rejected: wrong phase (${this.gameState?.phase})`);
+      return;
+    }
+    if (!this.gameState.currentVotingRound) {
+      console.log(`[ROUND3] Rejected: no currentVotingRound`);
+      return;
+    }
+    if (!this.gameState.currentVotingRound.isFinalRound) {
+      console.log(`[ROUND3] Rejected: not final round`);
+      return;
+    }
 
     const voter = this.gameState.players.find((p) => p.id === connection.id);
-    if (!voter) return;
+    if (!voter) {
+      console.log(`[ROUND3] Rejected: voter not found for connection ${connection.id}`);
+      return;
+    }
+    console.log(`[ROUND3] Voter: ${voter.name} (${voter.id})`);
 
     // Already voted?
     if (this.gameState.currentVotingRound.votedPlayerIds.includes(voter.id)) {
+      console.log(`[ROUND3] Rejected: voter already voted`);
       return;
     }
 
     // Validate total votes === 3
     const totalVotes = Object.values(votes).reduce((a, b) => a + b, 0);
-    if (totalVotes !== 3) return;
+    if (totalVotes !== 3) {
+      console.log(`[ROUND3] Rejected: totalVotes=${totalVotes}, expected 3`);
+      return;
+    }
 
     // Validate: max 1 vote per answer, and can't vote for own answer
     for (const [playerId, voteCount] of Object.entries(votes)) {
-      if (voteCount > 1) return; // Max 1 vote per answer
-      if (playerId === voter.id && voteCount > 0) return; // Can't vote for own answer
+      if (voteCount > 1) {
+        console.log(`[ROUND3] Rejected: voteCount > 1 for player ${playerId}`);
+        return;
+      }
+      if (playerId === voter.id && voteCount > 0) {
+        console.log(`[ROUND3] Rejected: voter tried to vote for own answer`);
+        return;
+      }
     }
 
     // Apply votes
+    console.log(`[ROUND3] Applying votes for ${voter.name}`);
     for (const [playerId, voteCount] of Object.entries(votes)) {
       const answer = this.gameState.currentVotingRound.answers.find(
         (a) => a.playerId === playerId
@@ -634,10 +646,12 @@ class QuiplashServer implements Party.Server {
       if (answer && voteCount > 0) {
         answer.votes += voteCount;
         answer.voterIds.push(voter.id);
+        console.log(`[ROUND3] Applied ${voteCount} vote to answer by ${playerId}, new total: ${answer.votes}`);
       }
     }
 
     this.gameState.currentVotingRound.votedPlayerIds.push(voter.id);
+    console.log(`[ROUND3] Vote recorded, votedPlayerIds: ${JSON.stringify(this.gameState.currentVotingRound.votedPlayerIds)}`);
     this.broadcastState();
     this.checkVotingComplete();
   }
@@ -646,9 +660,28 @@ class QuiplashServer implements Party.Server {
   endVotingRound() {
     if (!this.gameState || !this.gameState.currentVotingRound) return;
 
+    // Guard against double-ending (can happen with race conditions)
+    if (this.votingRoundEnding) {
+      console.log(`[VOTING] endVotingRound already in progress, skipping`);
+      return;
+    }
+    this.votingRoundEnding = true;
+
+    // Clean up minimum vote timeout
+    if (this.minVoteTimeoutId) {
+      clearTimeout(this.minVoteTimeoutId);
+      this.minVoteTimeoutId = null;
+    }
+
+    const isFinalRound = this.gameState.currentVotingRound.isFinalRound;
+    const answers = this.gameState.currentVotingRound.answers;
+    console.log(`[VOTING] Ending voting round. Round 3=${isFinalRound}, answers=${answers.length}`);
+    for (const answer of answers) {
+      console.log(`[VOTING] Answer by ${answer.playerId}: ${answer.votes} votes, voterIds=${JSON.stringify(answer.voterIds)}`);
+    }
+
     // Award points (200 per vote in Round 3, 100 otherwise)
     const pointsPerVote = this.gameState.currentRound === 3 ? 200 : 100;
-    const answers = this.gameState.currentVotingRound.answers;
     for (const answer of answers) {
       const player = this.gameState.players.find((p) => p.id === answer.playerId);
       if (player) {
