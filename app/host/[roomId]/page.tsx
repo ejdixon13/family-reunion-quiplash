@@ -161,6 +161,31 @@ export default function HostPage() {
             Family Quiplash
           </h1>
           <p className="text-white/60 text-lg font-body">Room: {roomId}</p>
+
+          {/* TTS Controls */}
+          <div className="flex justify-center gap-2 mt-4">
+            <button
+              onClick={() => tts.speakAnnouncement('The votes are in! [laugh] It\'s a Quiplash!')}
+              disabled={tts.isPlaying}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                tts.isPlaying
+                  ? 'bg-green-500/50 text-white animate-pulse'
+                  : 'bg-purple-500/80 hover:bg-purple-500 text-white hover:scale-105'
+              }`}
+            >
+              {tts.isPlaying ? '🔊 Playing...' : '🎤 Test TTS'}
+            </button>
+            <button
+              onClick={() => tts.setEnabled(!tts.isEnabled)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all hover:scale-105 ${
+                tts.isEnabled
+                  ? 'bg-green-500/80 hover:bg-green-500 text-white'
+                  : 'bg-red-500/80 hover:bg-red-500 text-white'
+              }`}
+            >
+              {tts.isEnabled ? '🔊 TTS On' : '🔇 TTS Off'}
+            </button>
+          </div>
         </motion.div>
 
         {/* Lobby Phase */}
@@ -246,7 +271,7 @@ export default function HostPage() {
                       <span>Dev Tools</span>
                       <span className="text-xs bg-yellow-500/30 px-2 py-1 rounded">Ctrl+Shift+D</span>
                     </h3>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <button
                         onClick={() => sendMessage({ type: 'add_dummy_players', count: 1 })}
                         className="px-3 py-2 bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-100 rounded-lg text-sm transition-colors"
@@ -264,6 +289,27 @@ export default function HostPage() {
                         className="px-3 py-2 bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-100 rounded-lg text-sm transition-colors"
                       >
                         +5 Bots
+                      </button>
+                      <button
+                        onClick={() => tts.speakAnnouncement('The votes are in! [laugh] It\'s a Quiplash!')}
+                        disabled={tts.isPlaying}
+                        className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                          tts.isPlaying
+                            ? 'bg-green-500/50 text-green-100'
+                            : 'bg-purple-500/30 hover:bg-purple-500/50 text-purple-100'
+                        }`}
+                      >
+                        {tts.isPlaying ? '🔊 Playing...' : '🎤 Test TTS'}
+                      </button>
+                      <button
+                        onClick={() => tts.setEnabled(!tts.isEnabled)}
+                        className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                          tts.isEnabled
+                            ? 'bg-green-500/30 hover:bg-green-500/50 text-green-100'
+                            : 'bg-red-500/30 hover:bg-red-500/50 text-red-100'
+                        }`}
+                      >
+                        {tts.isEnabled ? '🔊 TTS On' : '🔇 TTS Off'}
                       </button>
                     </div>
                   </motion.div>
