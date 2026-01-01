@@ -1,0 +1,6 @@
+# Place voice sample WAV files here for voice cloning
+# Files should be named after family members, e.g., mom.wav, uncle_bob.wav
+# Requirements:
+# - WAV format, 16kHz+ sample rate
+# - 5-10 seconds of clear speech
+# - Minimal background noise

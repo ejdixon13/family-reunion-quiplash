@@ -1,20 +1,127 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { usePartySocket } from '@/hooks/usePartySocket';
 import { Timer } from '@/app/components/Timer';
-import { ContextReveal } from '@/app/components/ContextReveal';
 
-export default function PlayerPage() {
-  const params = useParams();
-  const roomId = params.roomId as string;
-
+// Join form component - shown before connecting to socket
+function JoinForm({
+  initialRoomId,
+  onJoin,
+}: {
+  initialRoomId: string;
+  onJoin: (roomId: string, playerName: string) => void;
+}) {
+  const [roomCode, setRoomCode] = useState(initialRoomId);
   const [playerName, setPlayerName] = useState('');
-  const [hasJoined, setHasJoined] = useState(false);
+
+  const handleSubmit = () => {
+    if (roomCode.trim() && playerName.trim()) {
+      onJoin(roomCode.trim().toUpperCase(), playerName.trim());
+    }
+  };
+
+  const canJoin = roomCode.trim().length > 0 && playerName.trim().length > 0;
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <motion.div
+        className="glass-card p-8 w-full max-w-sm"
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', damping: 20 }}
+      >
+        <motion.h1
+          className="quiplash-title text-4xl text-center mb-6"
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+        >
+          Join Game
+        </motion.h1>
+
+        {/* Room Code Field */}
+        <motion.div
+          className="mb-4"
+          initial={{ x: -20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          <label className="block text-white/60 text-sm font-body mb-2">
+            Room Code
+          </label>
+          <input
+            type="text"
+            value={roomCode}
+            onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+            onKeyDown={(e) => e.key === 'Enter' && canJoin && handleSubmit()}
+            placeholder="ABCD"
+            className="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white placeholder-white/50 text-xl font-display text-center tracking-widest focus:outline-none focus:border-quiplash-yellow focus:ring-2 focus:ring-quiplash-yellow/50 uppercase"
+            maxLength={10}
+          />
+        </motion.div>
+
+        {/* Player Name Field */}
+        <motion.div
+          className="mb-6"
+          initial={{ x: -20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          <label className="block text-white/60 text-sm font-body mb-2">
+            Your Name
+          </label>
+          <input
+            type="text"
+            value={playerName}
+            onChange={(e) => setPlayerName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && canJoin && handleSubmit()}
+            placeholder="Enter your name"
+            className="w-full px-4 py-3 bg-white/20 border-2 border-white/30 rounded-xl text-white placeholder-white/50 text-lg font-body focus:outline-none focus:border-quiplash-yellow focus:ring-2 focus:ring-quiplash-yellow/50"
+            autoFocus
+            maxLength={20}
+          />
+        </motion.div>
+
+        <motion.button
+          onClick={handleSubmit}
+          disabled={!canJoin}
+          className={`
+            w-full py-4 rounded-xl text-lg font-display transition-all
+            ${canJoin
+              ? 'bg-gradient-to-r from-quiplash-yellow to-yellow-500 text-quiplash-blue shadow-lg shadow-yellow-500/30'
+              : 'bg-white/20 text-white/50 cursor-not-allowed'}
+          `}
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          whileHover={canJoin ? { scale: 1.02 } : {}}
+          whileTap={canJoin ? { scale: 0.98 } : {}}
+        >
+          Join Game
+        </motion.button>
+      </motion.div>
+    </div>
+  );
+}
+
+// Game component - only rendered after joining (connects to socket)
+function GameView({
+  roomId,
+  playerName,
+  onLeave,
+}: {
+  roomId: string;
+  playerName: string;
+  onLeave: () => void;
+}) {
+  const [hasJoinedRoom, setHasJoinedRoom] = useState(false);
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
   const [answerText, setAnswerText] = useState('');
   const [submittedPromptIds, setSubmittedPromptIds] = useState<Set<string>>(new Set());
+  const [selectedVote, setSelectedVote] = useState<string | null>(null);
 
   const {
     gameState,
@@ -31,13 +138,13 @@ export default function PlayerPage() {
   const currentPlayer = gameState?.players.find((p) => p.id === connectionId);
   const isAudience = currentPlayer?.isAudience ?? false;
 
-  // Handle joining
-  const handleJoin = () => {
-    if (playerName.trim()) {
-      join(playerName.trim());
-      setHasJoined(true);
+  // Auto-join once connected
+  useEffect(() => {
+    if (isConnected && !hasJoinedRoom) {
+      join(playerName);
+      setHasJoinedRoom(true);
     }
-  };
+  }, [isConnected, hasJoinedRoom, join, playerName]);
 
   // Handle answer submission
   const handleSubmitAnswer = () => {
@@ -51,6 +158,14 @@ export default function PlayerPage() {
     }
   };
 
+  // Handle vote with animation
+  const handleVote = (playerId: string) => {
+    setSelectedVote(playerId);
+    setTimeout(() => {
+      submitVote(playerId);
+    }, 300);
+  };
+
   // Reset prompts when new round starts
   useEffect(() => {
     if (gameState?.phase === 'answering') {
@@ -60,54 +175,37 @@ export default function PlayerPage() {
     }
   }, [gameState?.phase, gameState?.currentRound]);
 
+  // Reset vote selection when voting round changes
+  useEffect(() => {
+    setSelectedVote(null);
+  }, [gameState?.currentVotingRound?.promptId]);
+
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center p-4">
-        <div className="text-white text-xl animate-pulse">Connecting...</div>
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="text-white text-xl font-display animate-pulse mb-4">Connecting to {roomId}...</div>
+          <button
+            onClick={onLeave}
+            className="text-white/60 text-sm font-body hover:text-white underline"
+          >
+            Back to join screen
+          </button>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center p-4">
-        <div className="text-red-400 text-xl text-center">{error}</div>
-      </div>
-    );
-  }
-
-  // Join screen
-  if (!hasJoined) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center p-4">
-        <div className="bg-white/10 rounded-2xl p-8 w-full max-w-sm">
-          <h1 className="text-3xl font-bold text-white text-center mb-6">
-            Join Game
-          </h1>
-          <p className="text-white/60 text-center mb-6">Room: {roomId}</p>
-
-          <input
-            type="text"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-            placeholder="Enter your name"
-            className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/50 text-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
-            autoFocus
-            maxLength={20}
-          />
-
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="text-red-400 text-xl font-display mb-4">{error}</div>
           <button
-            onClick={handleJoin}
-            disabled={!playerName.trim()}
-            className={`
-              w-full mt-4 py-3 rounded-xl text-lg font-bold transition-all
-              ${playerName.trim()
-                ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-gray-900 hover:scale-105'
-                : 'bg-white/20 text-white/50 cursor-not-allowed'}
-            `}
+            onClick={onLeave}
+            className="px-6 py-2 bg-white/20 text-white rounded-lg font-body hover:bg-white/30 transition-colors"
           >
-            Join
+            Try Different Room
           </button>
         </div>
       </div>
@@ -116,8 +214,8 @@ export default function PlayerPage() {
 
   if (!gameState) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center p-4">
-        <div className="text-white text-xl animate-pulse">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-white text-xl font-display animate-pulse">Loading...</div>
       </div>
     );
   }
@@ -125,25 +223,40 @@ export default function PlayerPage() {
   // Lobby - waiting for game to start
   if (gameState.phase === 'lobby' || gameState.phase === 'category_select') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="text-6xl mb-4">Party</div>
-          <h2 className="text-2xl font-bold text-white mb-4">
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <motion.div
+          className="text-center"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring' }}
+        >
+          <motion.div
+            className="text-7xl mb-4"
+            animate={{ rotate: [0, -10, 10, -10, 0] }}
+            transition={{ repeat: Infinity, duration: 2, repeatDelay: 1 }}
+          >
+            🎉
+          </motion.div>
+          <h2 className="text-3xl font-display text-quiplash-yellow mb-4">
             Welcome, {currentPlayer?.name}!
           </h2>
           {isAudience ? (
-            <p className="text-yellow-400 text-lg">
+            <p className="text-quiplash-pink text-lg font-body">
               You&apos;re in the audience! You&apos;ll vote on answers.
             </p>
           ) : (
-            <p className="text-white/60 text-lg">
-              Waiting for the host to start the game...
-            </p>
+            <motion.p
+              className="text-white/60 text-lg font-body"
+              animate={{ opacity: [0.6, 1, 0.6] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+            >
+              Waiting for the host to start...
+            </motion.p>
           )}
-          <div className="mt-8 text-white/40 text-sm">
-            {gameState.players.length} player{gameState.players.length !== 1 ? 's' : ''} connected
+          <div className="mt-8 text-white/40 text-sm font-body">
+            Room: {roomId} • {gameState.players.length} player{gameState.players.length !== 1 ? 's' : ''} connected
           </div>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -153,10 +266,10 @@ export default function PlayerPage() {
     // Audience just watches
     if (isAudience) {
       return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center p-4">
+        <div className="min-h-screen flex items-center justify-center p-4">
           <div className="text-center">
             <Timer seconds={gameState.timer} maxSeconds={gameState.config.answerTimeSeconds} />
-            <p className="text-white/60 text-lg mt-4">
+            <p className="text-white/60 text-lg mt-4 font-body">
               Players are answering their prompts...
             </p>
           </div>
@@ -169,57 +282,95 @@ export default function PlayerPage() {
 
     if (allSubmitted || !currentPrompt) {
       return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center p-4">
-          <div className="text-center">
-            <div className="text-6xl mb-4">Check</div>
-            <h2 className="text-2xl font-bold text-white mb-4">All done!</h2>
-            <p className="text-white/60">Waiting for other players...</p>
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <motion.div
+            className="text-center"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring' }}
+          >
+            <motion.div
+              className="text-7xl mb-4"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1, rotate: [0, 360] }}
+              transition={{ delay: 0.2, type: 'spring' }}
+            >
+              ✅
+            </motion.div>
+            <h2 className="text-3xl font-display text-quiplash-yellow mb-4">All done!</h2>
+            <p className="text-white/60 font-body">Waiting for other players...</p>
             <div className="mt-6">
               <Timer seconds={gameState.timer} maxSeconds={gameState.config.answerTimeSeconds} />
             </div>
-          </div>
+          </motion.div>
         </div>
       );
     }
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4 flex flex-col">
-        <div className="flex-shrink-0 flex justify-between items-center mb-4">
-          <span className="text-white/60 text-sm">
+      <div className="min-h-screen p-4 flex flex-col">
+        <motion.div
+          className="flex-shrink-0 flex justify-between items-center mb-4"
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+        >
+          <span className="text-white/60 text-sm font-body px-3 py-1 bg-white/10 rounded-full">
             {currentPromptIndex + 1} of {myPrompts.length}
           </span>
           <Timer seconds={gameState.timer} maxSeconds={gameState.config.answerTimeSeconds} />
-        </div>
+        </motion.div>
 
         <div className="flex-1 flex flex-col justify-center">
-          <div className="bg-white/10 rounded-2xl p-6 mb-6">
-            <h2 className="text-xl font-bold text-yellow-400 text-center">
+          <motion.div
+            className="glass-card p-6 mb-6"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring' }}
+            key={currentPrompt.id}
+          >
+            <h2 className="text-xl font-display text-quiplash-yellow text-center">
               {currentPrompt.prompt}
             </h2>
-          </div>
+          </motion.div>
 
-          <textarea
-            value={answerText}
-            onChange={(e) => setAnswerText(e.target.value)}
-            placeholder="Type your answer..."
-            className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/50 text-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none"
-            rows={3}
-            maxLength={100}
-            autoFocus
-          />
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+          >
+            <textarea
+              value={answerText}
+              onChange={(e) => setAnswerText(e.target.value)}
+              placeholder="Type your answer..."
+              className="w-full px-4 py-4 bg-white/20 border-2 border-white/30 rounded-xl text-white placeholder-white/50 text-lg font-body focus:outline-none focus:border-quiplash-yellow focus:ring-2 focus:ring-quiplash-yellow/50 resize-none"
+              rows={3}
+              maxLength={100}
+              autoFocus
+            />
+            <div className="flex justify-end mt-1">
+              <span className={`text-sm font-body ${answerText.length > 80 ? 'text-orange-400' : 'text-white/40'}`}>
+                {answerText.length}/100
+              </span>
+            </div>
+          </motion.div>
 
-          <button
+          <motion.button
             onClick={handleSubmitAnswer}
             disabled={!answerText.trim()}
             className={`
-              w-full mt-4 py-4 rounded-xl text-lg font-bold transition-all
+              w-full mt-4 py-4 rounded-xl text-lg font-display transition-all
               ${answerText.trim()
-                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:scale-105'
+                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/30'
                 : 'bg-white/20 text-white/50 cursor-not-allowed'}
             `}
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            whileHover={answerText.trim() ? { scale: 1.02 } : {}}
+            whileTap={answerText.trim() ? { scale: 0.98 } : {}}
           >
             Submit Answer
-          </button>
+          </motion.button>
         </div>
       </div>
     );
@@ -233,54 +384,100 @@ export default function PlayerPage() {
 
     if (isAuthor) {
       return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center p-4">
-          <div className="text-center">
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <motion.div
+            className="text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <motion.div
+              className="text-6xl mb-4"
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+            >
+              🤞
+            </motion.div>
             <Timer seconds={gameState.timer} maxSeconds={gameState.config.voteTimeSeconds} />
-            <p className="text-white text-lg mt-4">
+            <p className="text-white text-lg mt-4 font-body">
               This is your prompt! Others are voting...
             </p>
-          </div>
+          </motion.div>
         </div>
       );
     }
 
     if (hasVoted) {
       return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center p-4">
-          <div className="text-center">
-            <div className="text-6xl mb-4">Voting</div>
-            <h2 className="text-2xl font-bold text-white mb-4">Vote cast!</h2>
-            <p className="text-white/60">Waiting for others...</p>
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <motion.div
+            className="text-center"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring' }}
+          >
+            <motion.div
+              className="text-7xl mb-4"
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', damping: 10 }}
+            >
+              🗳️
+            </motion.div>
+            <h2 className="text-3xl font-display text-quiplash-yellow mb-4">Vote cast!</h2>
+            <p className="text-white/60 font-body">Waiting for others...</p>
             <div className="mt-6">
               <Timer seconds={gameState.timer} maxSeconds={gameState.config.voteTimeSeconds} />
             </div>
-          </div>
+          </motion.div>
         </div>
       );
     }
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4 flex flex-col">
-        <div className="flex-shrink-0 mb-4">
+      <div className="min-h-screen p-4 flex flex-col">
+        <motion.div
+          className="flex-shrink-0 mb-4 text-center"
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+        >
           <Timer seconds={gameState.timer} maxSeconds={gameState.config.voteTimeSeconds} />
-        </div>
+        </motion.div>
 
-        <div className="bg-white/10 rounded-xl p-4 mb-6">
-          <h2 className="text-lg font-bold text-yellow-400 text-center">
+        <motion.div
+          className="glass-card p-4 mb-6"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+        >
+          <h2 className="text-lg font-display text-quiplash-yellow text-center">
             {votingRound.prompt.prompt}
           </h2>
-        </div>
+        </motion.div>
 
         <div className="flex-1 flex flex-col gap-4 justify-center">
-          {votingRound.answers.map((answer, idx) => (
-            <button
-              key={idx}
-              onClick={() => submitVote(answer.playerId)}
-              className="w-full p-6 bg-white/10 rounded-xl text-white text-lg font-bold hover:bg-white/20 hover:scale-105 transition-all active:scale-95"
-            >
-              {answer.text}
-            </button>
-          ))}
+          <AnimatePresence>
+            {votingRound.answers.map((answer, idx) => (
+              <motion.button
+                key={idx}
+                onClick={() => handleVote(answer.playerId)}
+                disabled={selectedVote !== null}
+                className={`
+                  w-full p-6 rounded-xl text-white text-xl font-display transition-all
+                  ${selectedVote === answer.playerId
+                    ? 'bg-gradient-to-r from-quiplash-yellow to-yellow-500 text-quiplash-blue scale-105'
+                    : selectedVote !== null
+                    ? 'bg-white/5 opacity-50'
+                    : 'bg-white/10 hover:bg-white/20 active:scale-95'}
+                `}
+                initial={{ x: idx === 0 ? -50 : 50, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: 0.2 + idx * 0.1, type: 'spring' }}
+                whileHover={selectedVote === null ? { scale: 1.02 } : {}}
+                whileTap={selectedVote === null ? { scale: 0.98 } : {}}
+              >
+                {answer.text}
+              </motion.button>
+            ))}
+          </AnimatePresence>
         </div>
       </div>
     );
@@ -289,45 +486,77 @@ export default function PlayerPage() {
   // Vote results phase
   if (gameState.phase === 'vote_results' && gameState.currentVotingRound) {
     const votingRound = gameState.currentVotingRound;
-    const myAnswer = votingRound.answers.find((a) => a.playerId === connectionId);
+    const totalVotes = votingRound.answers.reduce((sum, a) => sum + a.votes, 0);
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4 flex flex-col items-center justify-center">
-        <div className="w-full max-w-md space-y-4">
-          <h2 className="text-xl font-bold text-yellow-400 text-center">
+      <div className="min-h-screen p-4 flex flex-col items-center justify-center">
+        <motion.div
+          className="w-full max-w-md space-y-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          <motion.h2
+            className="text-xl font-display text-quiplash-yellow text-center mb-6"
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+          >
             {votingRound.prompt.prompt}
-          </h2>
+          </motion.h2>
 
           {votingRound.answers
             .sort((a, b) => b.votes - a.votes)
             .map((answer, idx) => {
               const isWinner = idx === 0 && answer.votes > 0;
               const isMine = answer.playerId === connectionId;
+              const isQuiplash = isWinner && answer.votes === totalVotes && totalVotes > 0;
 
               return (
-                <div
+                <motion.div
                   key={idx}
                   className={`
                     p-4 rounded-xl
-                    ${isWinner ? 'bg-green-500/30 ring-2 ring-green-400' : 'bg-white/10'}
-                    ${isMine ? 'ring-2 ring-yellow-400' : ''}
+                    ${isQuiplash
+                      ? 'winner-card'
+                      : isWinner
+                      ? 'bg-green-500/30 ring-2 ring-green-400'
+                      : 'bg-white/10'}
+                    ${isMine && !isQuiplash ? 'ring-2 ring-quiplash-yellow' : ''}
                   `}
+                  initial={{ scale: 0.8, opacity: 0, y: 20 }}
+                  animate={{ scale: isWinner ? 1.02 : 1, opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.15, type: 'spring' }}
                 >
-                  <p className="text-white font-bold">{answer.text}</p>
-                  <p className="text-white/60 text-sm mt-1">- {answer.playerName}</p>
-                  <p className="text-yellow-400 font-bold mt-2">
-                    {answer.votes} vote{answer.votes !== 1 ? 's' : ''}
+                  {isQuiplash && (
+                    <motion.div
+                      className="text-2xl font-display text-quiplash-blue text-center mb-2"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.3, type: 'spring' }}
+                    >
+                      QUIPLASH!
+                    </motion.div>
+                  )}
+                  <p className={`font-display text-lg ${isQuiplash ? 'text-quiplash-blue' : 'text-white'}`}>
+                    {answer.text}
                   </p>
-                </div>
+                  <p className={`text-sm mt-1 font-body ${isQuiplash ? 'text-quiplash-blue/70' : 'text-white/60'}`}>
+                    - {answer.playerName} {isMine && '(you)'}
+                  </p>
+                  <motion.p
+                    className={`font-display mt-2 ${isQuiplash ? 'text-quiplash-blue' : 'text-quiplash-yellow'}`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 + idx * 0.15 }}
+                  >
+                    {answer.votes} vote{answer.votes !== 1 ? 's' : ''}
+                    <span className="text-sm ml-1">
+                      (+{answer.votes * 100}{isQuiplash ? ' +250' : ''})
+                    </span>
+                  </motion.p>
+                </motion.div>
               );
             })}
-
-          <ContextReveal
-            snippet={votingRound.prompt.context.snippet}
-            date={votingRound.prompt.context.date}
-            participants={votingRound.prompt.context.participants}
-          />
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -341,30 +570,55 @@ export default function PlayerPage() {
     const myRank = sortedPlayers.findIndex((p) => p.id === connectionId) + 1;
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4 flex flex-col items-center justify-center">
-        <h2 className="text-2xl font-bold text-white mb-6">
+      <div className="min-h-screen p-4 flex flex-col items-center justify-center">
+        <motion.h2
+          className="quiplash-title text-3xl mb-6"
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring' }}
+        >
           Round {gameState.currentRound} Complete!
-        </h2>
+        </motion.h2>
 
-        <div className="text-center mb-6">
-          <p className="text-white/60">Your rank</p>
-          <p className="text-5xl font-bold text-yellow-400">#{myRank}</p>
-          <p className="text-white text-xl mt-2">{currentPlayer?.score} pts</p>
-        </div>
+        <motion.div
+          className="text-center mb-6"
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          <p className="text-white/60 font-body">Your rank</p>
+          <motion.p
+            className="text-6xl font-display text-quiplash-yellow"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.3, type: 'spring' }}
+          >
+            #{myRank}
+          </motion.p>
+          <p className="text-white text-xl mt-2 font-display">{currentPlayer?.score} pts</p>
+        </motion.div>
 
-        <div className="w-full max-w-sm space-y-2">
+        <motion.div
+          className="w-full max-w-sm space-y-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+        >
           {sortedPlayers.slice(0, 5).map((player, idx) => (
-            <div
+            <motion.div
               key={player.id}
               className={`
-                flex items-center justify-between p-3 rounded-lg
-                ${player.id === connectionId ? 'bg-yellow-400/20 ring-1 ring-yellow-400' : 'bg-white/10'}
+                flex items-center justify-between p-3 rounded-lg font-body
+                ${player.id === connectionId ? 'bg-quiplash-yellow/20 ring-2 ring-quiplash-yellow' : 'bg-white/10'}
               `}
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.5 + idx * 0.05 }}
             >
               <div className="flex items-center gap-3">
                 <span className={`
-                  w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
-                  ${idx === 0 ? 'bg-yellow-400 text-gray-900' :
+                  w-7 h-7 rounded-full flex items-center justify-center text-sm font-display
+                  ${idx === 0 ? 'bg-quiplash-yellow text-quiplash-blue' :
                     idx === 1 ? 'bg-gray-300 text-gray-900' :
                     idx === 2 ? 'bg-orange-400 text-gray-900' : 'bg-white/20 text-white'}
                 `}>
@@ -372,10 +626,10 @@ export default function PlayerPage() {
                 </span>
                 <span className="text-white font-medium">{player.name}</span>
               </div>
-              <span className="text-yellow-400 font-bold">{player.score}</span>
-            </div>
+              <span className="text-quiplash-yellow font-display">{player.score}</span>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -390,34 +644,66 @@ export default function PlayerPage() {
     const isWinner = winner?.id === connectionId;
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4 flex flex-col items-center justify-center">
-        <h2 className="text-3xl font-bold text-white mb-6">Game Over!</h2>
+      <div className="min-h-screen p-4 flex flex-col items-center justify-center">
+        <motion.h2
+          className="quiplash-title text-4xl mb-6"
+          initial={{ scale: 0, rotate: -10 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ type: 'spring', damping: 10 }}
+        >
+          Game Over!
+        </motion.h2>
 
         {isWinner ? (
-          <div className="text-center mb-8">
-            <div className="text-6xl mb-4">Trophy</div>
-            <p className="text-2xl font-bold text-yellow-400">You won!</p>
-          </div>
+          <motion.div
+            className="text-center mb-8"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.3, type: 'spring' }}
+          >
+            <motion.div
+              className="text-8xl mb-4"
+              animate={{ rotate: [0, -10, 10, -10, 0] }}
+              transition={{ delay: 0.5, duration: 0.5 }}
+            >
+              🏆
+            </motion.div>
+            <p className="text-3xl font-display text-quiplash-yellow">You won!</p>
+          </motion.div>
         ) : (
-          <div className="text-center mb-8">
-            <p className="text-xl text-white/60">Winner:</p>
-            <p className="text-2xl font-bold text-yellow-400">{winner?.name}</p>
-          </div>
+          <motion.div
+            className="text-center mb-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <motion.div className="text-6xl mb-4">👑</motion.div>
+            <p className="text-xl text-white/60 font-body">Winner:</p>
+            <p className="text-2xl font-display text-quiplash-yellow">{winner?.name}</p>
+          </motion.div>
         )}
 
-        <div className="w-full max-w-sm space-y-2">
+        <motion.div
+          className="w-full max-w-sm space-y-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+        >
           {sortedPlayers.map((player, idx) => (
-            <div
+            <motion.div
               key={player.id}
               className={`
-                flex items-center justify-between p-3 rounded-lg
-                ${player.id === connectionId ? 'bg-yellow-400/20 ring-1 ring-yellow-400' : 'bg-white/10'}
+                flex items-center justify-between p-3 rounded-lg font-body
+                ${player.id === connectionId ? 'bg-quiplash-yellow/20 ring-2 ring-quiplash-yellow' : 'bg-white/10'}
               `}
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.6 + idx * 0.05 }}
             >
               <div className="flex items-center gap-3">
                 <span className={`
-                  w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
-                  ${idx === 0 ? 'bg-yellow-400 text-gray-900' :
+                  w-7 h-7 rounded-full flex items-center justify-center text-sm font-display
+                  ${idx === 0 ? 'bg-quiplash-yellow text-quiplash-blue' :
                     idx === 1 ? 'bg-gray-300 text-gray-900' :
                     idx === 2 ? 'bg-orange-400 text-gray-900' : 'bg-white/20 text-white'}
                 `}>
@@ -425,18 +711,56 @@ export default function PlayerPage() {
                 </span>
                 <span className="text-white font-medium">{player.name}</span>
               </div>
-              <span className="text-yellow-400 font-bold">{player.score}</span>
-            </div>
+              <span className="text-quiplash-yellow font-display">{player.score}</span>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   // Default fallback
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center p-4">
-      <div className="text-white text-xl">Loading game state...</div>
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="text-white text-xl font-display">Loading game state...</div>
     </div>
+  );
+}
+
+// Main page component - orchestrates join form vs game view
+export default function PlayerPage() {
+  const params = useParams();
+  const router = useRouter();
+  const initialRoomId = (params.roomId as string) || '';
+
+  const [joinState, setJoinState] = useState<{
+    roomId: string;
+    playerName: string;
+  } | null>(null);
+
+  const handleJoin = (roomId: string, playerName: string) => {
+    // Update URL if room code changed
+    if (roomId !== initialRoomId) {
+      router.replace(`/play/${roomId}`);
+    }
+    setJoinState({ roomId, playerName });
+  };
+
+  const handleLeave = () => {
+    setJoinState(null);
+  };
+
+  // Show join form until user confirms
+  if (!joinState) {
+    return <JoinForm initialRoomId={initialRoomId} onJoin={handleJoin} />;
+  }
+
+  // Show game view after joining
+  return (
+    <GameView
+      roomId={joinState.roomId}
+      playerName={joinState.playerName}
+      onLeave={handleLeave}
+    />
   );
 }

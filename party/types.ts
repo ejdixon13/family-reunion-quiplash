@@ -16,6 +16,7 @@ export interface Player {
   isHost: boolean;
   isAudience: boolean;
   isConnected: boolean;
+  isDummy?: boolean;
 }
 
 // Prompt from the database
@@ -85,7 +86,8 @@ export type ClientMessage =
   | { type: 'next_prompt' }
   | { type: 'next_round' }
   | { type: 'restart_game' }
-  | { type: 'ping' };
+  | { type: 'ping' }
+  | { type: 'add_dummy_players'; count: number };
 
 // Server -> Client messages
 export type ServerMessage =

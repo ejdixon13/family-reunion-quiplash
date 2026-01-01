@@ -1,4 +1,25 @@
+volumes:
+  chatterbox-cache:
+
 services:
+  chatterbox:
+    build:
+      context: ./chatterbox
+      dockerfile: Dockerfile
+    ports:
+      - "8004:8004"
+    volumes:
+      - ./chatterbox/voices:/app/voices
+      - chatterbox-cache:/root/.cache/huggingface
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8004
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+
   nextjs:
     build:
       context: .
