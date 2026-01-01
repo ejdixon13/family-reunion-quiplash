@@ -17,8 +17,11 @@ export default function HostPage() {
   const roomId = params.roomId as string;
   const [showDevPanel, setShowDevPanel] = useState(false);
   const [showContextOverlay, setShowContextOverlay] = useState(false);
+  const [showVotingIntro, setShowVotingIntro] = useState(false);
+  const [showVotingContent, setShowVotingContent] = useState(false);
   const previousPromptId = useRef<string | null>(null);
   const announcedPromptId = useRef<string | null>(null);
+  const votingIntroPromptId = useRef<string | null>(null);
 
   const tts = useTTS();
   const ttsPreload = useTTSPreload();
@@ -96,6 +99,40 @@ export default function HostPage() {
       prefetchedPromptsRef.current.clear();
     }
   }, [gameState?.phase, gameState?.prompts, tts.isEnabled, ttsPreload]);
+
+  // Voting intro animation and announcement
+  useEffect(() => {
+    const promptId = gameState?.currentVotingRound?.promptId;
+
+    if (gameState?.phase === 'voting' && promptId) {
+      // Check if this is a new voting round
+      if (promptId !== votingIntroPromptId.current) {
+        votingIntroPromptId.current = promptId;
+
+        // Show intro, hide content
+        setShowVotingIntro(true);
+        setShowVotingContent(false);
+
+        // Play "voting time" announcement
+        if (tts.isEnabled) {
+          ttsPreload.playAnnouncement('votingStart');
+        }
+
+        // After 2.5 seconds, hide intro and show content
+        const timer = setTimeout(() => {
+          setShowVotingIntro(false);
+          setShowVotingContent(true);
+        }, 2500);
+
+        return () => clearTimeout(timer);
+      }
+    } else if (gameState?.phase !== 'voting') {
+      // Reset when leaving voting phase
+      setShowVotingIntro(false);
+      setShowVotingContent(false);
+      votingIntroPromptId.current = null;
+    }
+  }, [gameState?.phase, gameState?.currentVotingRound?.promptId, tts.isEnabled, ttsPreload]);
 
   // Callback to play pre-fetched conversation
   const handleSpeakDialogue = useCallback(
@@ -493,60 +530,114 @@ export default function HostPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
-            <Timer seconds={gameState.timer} maxSeconds={gameState.config.voteTimeSeconds} />
-
-            <motion.div
-              className="glass-card p-8"
-              initial={{ y: -20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.1 }}
-            >
-              <h2 className="text-3xl font-display text-quiplash-yellow mb-8">
-                {gameState.currentVotingRound.prompt.prompt}
-              </h2>
-
-              <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-                {gameState.currentVotingRound.answers.map((answer, idx) => (
+            {/* Voting Intro Animation */}
+            <AnimatePresence mode="wait">
+              {showVotingIntro && (
+                <motion.div
+                  key="voting-intro"
+                  className="flex flex-col items-center justify-center min-h-[400px]"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.2 }}
+                  transition={{ duration: 0.4 }}
+                >
                   <motion.div
-                    key={idx}
-                    className="answer-card cursor-default"
-                    initial={{
-                      x: idx === 0 ? -100 : 100,
-                      opacity: 0,
-                      rotateY: idx === 0 ? -15 : 15,
+                    className="text-8xl mb-6"
+                    animate={{
+                      scale: [1, 1.2, 1],
+                      rotate: [0, -5, 5, 0],
                     }}
-                    animate={{ x: 0, opacity: 1, rotateY: 0 }}
                     transition={{
-                      delay: 0.3 + idx * 0.2,
-                      type: 'spring',
-                      damping: 20,
+                      duration: 0.6,
+                      repeat: 2,
+                      ease: 'easeInOut',
                     }}
                   >
-                    <p className="text-white text-2xl font-display">{answer.text}</p>
+                    🗳️
                   </motion.div>
-                ))}
-              </div>
+                  <motion.h2
+                    className="quiplash-title text-6xl"
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    Time to Vote!
+                  </motion.h2>
+                  <motion.p
+                    className="text-white/60 text-xl mt-4 font-body"
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                  >
+                    Pick your favorite answer!
+                  </motion.p>
+                </motion.div>
+              )}
 
-              {/* VS indicator */}
-              <motion.div
-                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:block"
-                initial={{ scale: 0, rotate: -180 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ delay: 0.5, type: 'spring' }}
-              >
-                <span className="text-4xl font-display text-quiplash-pink">VS</span>
-              </motion.div>
-            </motion.div>
+              {showVotingContent && (
+                <motion.div
+                  key="voting-content"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Timer seconds={gameState.timer} maxSeconds={gameState.config.voteTimeSeconds} />
 
-            <motion.div
-              className="text-white/60 font-body"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.7 }}
-            >
-              {gameState.currentVotingRound.votedPlayerIds.length} of{' '}
-              {activePlayers.length - 2} votes cast
-            </motion.div>
+                  <motion.div
+                    className="glass-card p-8 mt-8"
+                    initial={{ y: -20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.1 }}
+                  >
+                    <h2 className="text-3xl font-display text-quiplash-yellow mb-8">
+                      {gameState.currentVotingRound.prompt.prompt}
+                    </h2>
+
+                    <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                      {gameState.currentVotingRound.answers.map((answer, idx) => (
+                        <motion.div
+                          key={idx}
+                          className="answer-card cursor-default"
+                          initial={{
+                            x: idx === 0 ? -100 : 100,
+                            opacity: 0,
+                            rotateY: idx === 0 ? -15 : 15,
+                          }}
+                          animate={{ x: 0, opacity: 1, rotateY: 0 }}
+                          transition={{
+                            delay: 0.3 + idx * 0.2,
+                            type: 'spring',
+                            damping: 20,
+                          }}
+                        >
+                          <p className="text-white text-2xl font-display">{answer.text}</p>
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    {/* VS indicator */}
+                    <motion.div
+                      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:block"
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ delay: 0.5, type: 'spring' }}
+                    >
+                      <span className="text-4xl font-display text-quiplash-pink">VS</span>
+                    </motion.div>
+                  </motion.div>
+
+                  <motion.div
+                    className="text-white/60 font-body mt-4"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.7 }}
+                  >
+                    {gameState.currentVotingRound.votedPlayerIds.length} of{' '}
+                    {activePlayers.length - 2} votes cast
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
 

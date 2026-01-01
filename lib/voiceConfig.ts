@@ -176,7 +176,7 @@ export function getVoiceConfig(name: string): VoiceConfig {
 export const ANNOUNCER_CONFIG: VoiceConfig = {
   mode: 'predefined',
   voiceId: 'Michael.wav',
-  exaggeration: 0.7, // High energy for announcements
+  exaggeration: 0.95, // Maximum game-show energy!
 };
 
 // TTS API endpoint

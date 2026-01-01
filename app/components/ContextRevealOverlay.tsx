@@ -32,7 +32,8 @@ export function ContextRevealOverlay({
   const hasSpokeRef = useRef(false);
   const lines = snippet.split('\n').filter(line => line.trim());
 
-  // Trigger TTS dialogue when overlay becomes visible
+  // Trigger TTS dialogue IMMEDIATELY when overlay becomes visible
+  // The audio should be pre-fetched so it plays right away
   useEffect(() => {
     if (isVisible && onSpeakDialogue && !hasSpokeRef.current) {
       hasSpokeRef.current = true;
@@ -48,14 +49,10 @@ export function ContextRevealOverlay({
         })
         .filter((msg): msg is { sender: string; message: string } => msg !== null);
 
-      // Match animation stagger timing (0.4s base + 0.15s per message)
-      const baseDelayMs = 400;
-      const staggerMs = 150;
-
-      // Start speaking after initial animation delay
-      setTimeout(() => {
-        onSpeakDialogue(dialogueMessages, staggerMs);
-      }, baseDelayMs);
+      // Start TTS immediately - no delay! Audio should be pre-fetched
+      // Use shorter stagger to keep up with animation
+      const staggerMs = 100;
+      onSpeakDialogue(dialogueMessages, staggerMs);
     }
 
     // Reset when overlay hides

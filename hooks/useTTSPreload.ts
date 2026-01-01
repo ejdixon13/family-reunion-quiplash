@@ -182,9 +182,9 @@ export function useTTSPreload(): UseTTSPreloadReturn {
     [generateMessageAudio]
   );
 
-  // Play pre-fetched conversation
+  // Play pre-fetched conversation immediately
   const playConversation = useCallback(
-    async (promptId: string, delayMs = 150) => {
+    async (promptId: string, delayMs = 100) => {
       const cached = conversationCache.current.get(promptId);
 
       if (!cached) {
@@ -192,17 +192,23 @@ export function useTTSPreload(): UseTTSPreloadReturn {
         return;
       }
 
-      // Queue each message with delay
+      // Clear any pending announcements so conversation starts immediately
+      ttsQueue.clear(true);
+
+      console.log(`[TTS] Playing conversation for prompt ${promptId} with ${cached.audioUrls.length} messages`);
+
+      // Queue each message - first one with high priority for immediate playback
       for (let i = 0; i < cached.audioUrls.length; i++) {
         const url = cached.audioUrls[i];
         if (!url) continue; // Skip failed generations
 
-        // Add delay between messages
+        // Add small delay between messages (but don't wait for previous to finish)
         if (i > 0) {
           await new Promise((resolve) => setTimeout(resolve, delayMs));
         }
 
-        ttsQueue.enqueue({ audioUrl: url, priority: 'normal' });
+        // First message is high priority to start immediately
+        ttsQueue.enqueue({ audioUrl: url, priority: i === 0 ? 'high' : 'normal' });
       }
     },
     []
