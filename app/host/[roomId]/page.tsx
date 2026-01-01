@@ -19,7 +19,6 @@ export default function HostPage() {
   const [showContextOverlay, setShowContextOverlay] = useState(false);
   const previousPromptId = useRef<string | null>(null);
   const announcedPromptId = useRef<string | null>(null);
-  const prefetchedPromptId = useRef<string | null>(null);
 
   const tts = useTTS();
   const ttsPreload = useTTSPreload();
@@ -57,18 +56,25 @@ export default function HostPage() {
     }
   }, [gameState?.phase, tts.isEnabled, ttsPreload]);
 
-  // Pre-fetch conversation TTS during voting phase
-  useEffect(() => {
-    const votingRound = gameState?.currentVotingRound;
-    const promptId = votingRound?.promptId;
+  // Pre-fetch ALL conversation TTS during answering phase (before voting starts)
+  // This gives maximum time for TTS generation to complete
+  const prefetchedPromptsRef = useRef<Set<string>>(new Set());
 
-    if (gameState?.phase === 'voting' && votingRound && promptId && tts.isEnabled) {
-      // Only prefetch once per prompt
-      if (promptId !== prefetchedPromptId.current) {
-        prefetchedPromptId.current = promptId;
+  useEffect(() => {
+    // Start prefetching when we enter answering phase
+    if (gameState?.phase === 'answering' && gameState.prompts.length > 0 && tts.isEnabled) {
+      console.log(`[TTS Prefetch] Answering phase started - prefetching ${gameState.prompts.length} conversations`);
+
+      // Prefetch all prompts that we haven't already prefetched
+      for (const prompt of gameState.prompts) {
+        if (prefetchedPromptsRef.current.has(prompt.id)) {
+          continue; // Already prefetched
+        }
+
+        prefetchedPromptsRef.current.add(prompt.id);
 
         // Parse conversation from snippet
-        const snippet = votingRound.prompt.context.snippet;
+        const snippet = prompt.context.snippet;
         const lines = snippet.split('\n').filter((line: string) => line.trim());
         const messages = lines
           .map((line: string) => {
@@ -80,11 +86,16 @@ export default function HostPage() {
           })
           .filter((msg: { sender: string; message: string } | null): msg is { sender: string; message: string } => msg !== null);
 
-        // Start pre-fetching in background
-        ttsPreload.prefetchConversation(promptId, messages);
+        // Start pre-fetching in background (don't await - let them run in parallel)
+        ttsPreload.prefetchConversation(prompt.id, messages);
       }
     }
-  }, [gameState?.phase, gameState?.currentVotingRound, tts.isEnabled, ttsPreload]);
+
+    // Clear prefetch tracking when returning to lobby (new game)
+    if (gameState?.phase === 'lobby') {
+      prefetchedPromptsRef.current.clear();
+    }
+  }, [gameState?.phase, gameState?.prompts, tts.isEnabled, ttsPreload]);
 
   // Callback to play pre-fetched conversation
   const handleSpeakDialogue = useCallback(
