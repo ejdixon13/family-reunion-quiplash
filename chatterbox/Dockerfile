@@ -9,15 +9,18 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     cmake \
     build-essential \
+    protobuf-compiler \
+    libprotobuf-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Clone Chatterbox-TTS-Server
 RUN git clone https://github.com/devnen/Chatterbox-TTS-Server.git .
 
 # Install CPU-only requirements
-# First install onnx binary wheel to avoid build issues
+# Pin protobuf and onnx versions for compatibility with s3tokenizer
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir onnx>=1.14.0 && \
+    pip install --no-cache-dir "protobuf>=3.19,<3.20" && \
+    pip install --no-cache-dir "onnx==1.14.1" && \
     pip install --no-cache-dir -r requirements.txt
 
 # Create voices directory
