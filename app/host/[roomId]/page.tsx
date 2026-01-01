@@ -589,41 +589,75 @@ export default function HostPage() {
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.1 }}
                   >
+                    {gameState.currentVotingRound.prompt.isImagePrompt && gameState.currentVotingRound.prompt.imageUrl && (
+                      <div className="mb-6">
+                        <img
+                          src={gameState.currentVotingRound.prompt.imageUrl}
+                          alt="Caption this"
+                          className="max-h-72 mx-auto rounded-xl shadow-2xl"
+                        />
+                      </div>
+                    )}
                     <h2 className="text-3xl font-display text-quiplash-yellow mb-8">
                       {gameState.currentVotingRound.prompt.prompt}
                     </h2>
 
-                    <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-                      {gameState.currentVotingRound.answers.map((answer, idx) => (
-                        <motion.div
-                          key={idx}
-                          className="answer-card cursor-default"
-                          initial={{
-                            x: idx === 0 ? -100 : 100,
-                            opacity: 0,
-                            rotateY: idx === 0 ? -15 : 15,
-                          }}
-                          animate={{ x: 0, opacity: 1, rotateY: 0 }}
-                          transition={{
-                            delay: 0.3 + idx * 0.2,
-                            type: 'spring',
-                            damping: 20,
-                          }}
-                        >
-                          <p className="text-white text-2xl font-display">{answer.text}</p>
-                        </motion.div>
-                      ))}
-                    </div>
+                    {gameState.currentVotingRound.isFinalRound ? (
+                      /* Final round: show all answers in a grid */
+                      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
+                        {gameState.currentVotingRound.answers.map((answer, idx) => (
+                          <motion.div
+                            key={idx}
+                            className="answer-card cursor-default p-4"
+                            initial={{ y: 30, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{
+                              delay: 0.2 + idx * 0.1,
+                              type: 'spring',
+                              damping: 20,
+                            }}
+                          >
+                            <p className="text-white text-xl font-display">{answer.text}</p>
+                            <p className="text-white/50 text-sm font-body mt-2">- {answer.playerName}</p>
+                          </motion.div>
+                        ))}
+                      </div>
+                    ) : (
+                      /* Normal rounds: 2 answers with VS */
+                      <>
+                        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                          {gameState.currentVotingRound.answers.map((answer, idx) => (
+                            <motion.div
+                              key={idx}
+                              className="answer-card cursor-default"
+                              initial={{
+                                x: idx === 0 ? -100 : 100,
+                                opacity: 0,
+                                rotateY: idx === 0 ? -15 : 15,
+                              }}
+                              animate={{ x: 0, opacity: 1, rotateY: 0 }}
+                              transition={{
+                                delay: 0.3 + idx * 0.2,
+                                type: 'spring',
+                                damping: 20,
+                              }}
+                            >
+                              <p className="text-white text-2xl font-display">{answer.text}</p>
+                            </motion.div>
+                          ))}
+                        </div>
 
-                    {/* VS indicator */}
-                    <motion.div
-                      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:block"
-                      initial={{ scale: 0, rotate: -180 }}
-                      animate={{ scale: 1, rotate: 0 }}
-                      transition={{ delay: 0.5, type: 'spring' }}
-                    >
-                      <span className="text-4xl font-display text-quiplash-pink">VS</span>
-                    </motion.div>
+                        {/* VS indicator */}
+                        <motion.div
+                          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:block"
+                          initial={{ scale: 0, rotate: -180 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          transition={{ delay: 0.5, type: 'spring' }}
+                        >
+                          <span className="text-4xl font-display text-quiplash-pink">VS</span>
+                        </motion.div>
+                      </>
+                    )}
                   </motion.div>
 
                   <motion.div
@@ -633,7 +667,9 @@ export default function HostPage() {
                     transition={{ delay: 0.7 }}
                   >
                     {gameState.currentVotingRound.votedPlayerIds.length} of{' '}
-                    {activePlayers.length - 2} votes cast
+                    {gameState.currentVotingRound.isFinalRound
+                      ? activePlayers.length
+                      : activePlayers.length - 2} votes cast
                   </motion.div>
                 </motion.div>
               )}
@@ -649,11 +685,24 @@ export default function HostPage() {
             animate={{ opacity: 1 }}
           >
             <motion.div className="glass-card p-8">
+              {gameState.currentVotingRound.prompt.isImagePrompt && gameState.currentVotingRound.prompt.imageUrl && (
+                <div className="mb-6">
+                  <img
+                    src={gameState.currentVotingRound.prompt.imageUrl}
+                    alt="Caption this"
+                    className="max-h-64 mx-auto rounded-xl shadow-2xl"
+                  />
+                </div>
+              )}
               <h2 className="text-2xl font-display text-quiplash-yellow mb-8">
                 {gameState.currentVotingRound.prompt.prompt}
               </h2>
 
-              <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              <div className={`grid gap-6 max-w-5xl mx-auto ${
+                gameState.currentVotingRound.isFinalRound
+                  ? 'md:grid-cols-2 lg:grid-cols-3'
+                  : 'md:grid-cols-2 max-w-4xl'
+              }`}>
                 {gameState.currentVotingRound.answers
                   .sort((a, b) => b.votes - a.votes)
                   .map((answer, idx) => {
@@ -662,6 +711,7 @@ export default function HostPage() {
                       0
                     );
                     const isWinner = idx === 0 && answer.votes > 0;
+                    // In final round, Quiplash requires getting all votes (harder with more answers)
                     const isQuiplash = isWinner && answer.votes === totalVotes && totalVotes > 0;
 
                     return (
@@ -716,7 +766,7 @@ export default function HostPage() {
                         >
                           {answer.votes} vote{answer.votes !== 1 ? 's' : ''}
                           <span className="text-lg ml-2">
-                            (+{answer.votes * 100}{isQuiplash ? ' +250' : ''} pts)
+                            (+{answer.votes * (gameState.currentRound === 3 ? 200 : 100)}{isQuiplash ? ' +250' : ''} pts)
                           </span>
                         </motion.div>
                       </motion.div>
@@ -855,8 +905,8 @@ export default function HostPage() {
         )}
       </div>
 
-      {/* Full-screen WhatsApp Context Reveal */}
-      {gameState.currentVotingRound && (
+      {/* Full-screen WhatsApp Context Reveal (skip for image prompts) */}
+      {gameState.currentVotingRound && !gameState.currentVotingRound.prompt.isImagePrompt && (
         <ContextRevealOverlay
           snippet={gameState.currentVotingRound.prompt.context.snippet}
           date={gameState.currentVotingRound.prompt.context.date}

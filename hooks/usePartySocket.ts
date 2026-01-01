@@ -37,6 +37,7 @@ interface UsePartySocketReturn {
   startGame: () => void;
   submitAnswer: (promptId: string, answer: string) => void;
   submitVote: (votedPlayerId: string) => void;
+  submitMultiVote: (votes: Record<string, number>) => void;
   nextPrompt: () => void;
   nextRound: () => void;
   restartGame: () => void;
@@ -166,6 +167,13 @@ export function usePartySocket(
     [sendMessage]
   );
 
+  const submitMultiVote = useCallback(
+    (votes: Record<string, number>) => {
+      sendMessage({ type: 'submit_multi_vote', votes });
+    },
+    [sendMessage]
+  );
+
   const nextPrompt = useCallback(() => {
     sendMessage({ type: 'next_prompt' });
   }, [sendMessage]);
@@ -190,6 +198,7 @@ export function usePartySocket(
     startGame,
     submitAnswer,
     submitVote,
+    submitMultiVote,
     nextPrompt,
     nextRound,
     restartGame,

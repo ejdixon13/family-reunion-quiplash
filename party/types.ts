@@ -29,6 +29,8 @@ export interface Prompt {
     date: string;
     participants: string[];
   };
+  imageUrl?: string;
+  isImagePrompt?: boolean;
 }
 
 // Answer submitted by a player
@@ -45,8 +47,9 @@ export interface Answer {
 export interface VotingRound {
   promptId: string;
   prompt: Prompt;
-  answers: [Answer, Answer];
+  answers: Answer[];  // 2 answers normally, all players' answers in final round
   votedPlayerIds: string[];
+  isFinalRound?: boolean;
 }
 
 // Game configuration
@@ -83,6 +86,7 @@ export type ClientMessage =
   | { type: 'start_game' }
   | { type: 'submit_answer'; promptId: string; answer: string }
   | { type: 'submit_vote'; votedPlayerId: string }
+  | { type: 'submit_multi_vote'; votes: Record<string, number> }
   | { type: 'next_prompt' }
   | { type: 'next_round' }
   | { type: 'restart_game' }

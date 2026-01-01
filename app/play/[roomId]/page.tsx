@@ -122,6 +122,7 @@ function GameView({
   const [answerText, setAnswerText] = useState('');
   const [submittedPromptIds, setSubmittedPromptIds] = useState<Set<string>>(new Set());
   const [selectedVote, setSelectedVote] = useState<string | null>(null);
+  const [voteAllocation, setVoteAllocation] = useState<Record<string, number>>({});
 
   const {
     gameState,
@@ -132,6 +133,7 @@ function GameView({
     join,
     submitAnswer,
     submitVote,
+    submitMultiVote,
   } = usePartySocket(roomId);
 
   // Get current player from game state
@@ -158,12 +160,29 @@ function GameView({
     }
   };
 
-  // Handle vote with animation
+  // Handle vote with animation (single vote mode)
   const handleVote = (playerId: string) => {
     setSelectedVote(playerId);
     setTimeout(() => {
       submitVote(playerId);
     }, 300);
+  };
+
+  // Handle multi-vote (tap to add, max 1 per answer)
+  const handleMultiVote = (playerId: string) => {
+    const totalVotesUsed = Object.values(voteAllocation).reduce((a, b) => a + b, 0);
+    if (totalVotesUsed >= 3) return;
+
+    // Can't vote for own answer
+    if (playerId === connectionId) return;
+
+    // Max 1 vote per answer
+    if (voteAllocation[playerId] >= 1) return;
+
+    setVoteAllocation(prev => ({
+      ...prev,
+      [playerId]: 1
+    }));
   };
 
   // Reset prompts when new round starts
@@ -178,7 +197,16 @@ function GameView({
   // Reset vote selection when voting round changes
   useEffect(() => {
     setSelectedVote(null);
+    setVoteAllocation({});
   }, [gameState?.currentVotingRound?.promptId]);
+
+  // Auto-submit multi-vote when all 3 votes placed
+  const totalVotesUsed = Object.values(voteAllocation).reduce((a, b) => a + b, 0);
+  useEffect(() => {
+    if (gameState?.currentVotingRound?.isFinalRound && totalVotesUsed === 3) {
+      submitMultiVote(voteAllocation);
+    }
+  }, [totalVotesUsed, gameState?.currentVotingRound?.isFinalRound, voteAllocation, submitMultiVote]);
 
   if (!isConnected) {
     return (
@@ -328,6 +356,15 @@ function GameView({
             transition={{ type: 'spring' }}
             key={currentPrompt.id}
           >
+            {currentPrompt.isImagePrompt && currentPrompt.imageUrl && (
+              <div className="mb-4">
+                <img
+                  src={currentPrompt.imageUrl}
+                  alt="Caption this"
+                  className="max-h-48 mx-auto rounded-lg shadow-lg"
+                />
+              </div>
+            )}
             <h2 className="text-xl font-display text-quiplash-yellow text-center">
               {currentPrompt.prompt}
             </h2>
@@ -381,8 +418,10 @@ function GameView({
     const votingRound = gameState.currentVotingRound;
     const hasVoted = votingRound.votedPlayerIds.includes(connectionId!);
     const isAuthor = votingRound.answers.some((a) => a.playerId === connectionId);
+    const isFinalRound = votingRound.isFinalRound;
 
-    if (isAuthor) {
+    // In normal rounds, authors can't vote. In final round, everyone votes.
+    if (isAuthor && !isFinalRound) {
       return (
         <div className="min-h-screen flex items-center justify-center p-4">
           <motion.div
@@ -433,6 +472,8 @@ function GameView({
       );
     }
 
+    const votesRemaining = 3 - totalVotesUsed;
+
     return (
       <div className="min-h-screen p-4 flex flex-col">
         <motion.div
@@ -448,35 +489,82 @@ function GameView({
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
         >
+          {votingRound.prompt.isImagePrompt && votingRound.prompt.imageUrl && (
+            <div className="mb-4">
+              <img
+                src={votingRound.prompt.imageUrl}
+                alt="Caption this"
+                className="max-h-40 mx-auto rounded-lg shadow-lg"
+              />
+            </div>
+          )}
           <h2 className="text-lg font-display text-quiplash-yellow text-center">
             {votingRound.prompt.prompt}
           </h2>
         </motion.div>
 
-        <div className="flex-1 flex flex-col gap-4 justify-center">
+        {/* Multi-vote indicator */}
+        {isFinalRound && (
+          <motion.div
+            className="text-center mb-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <span className="text-white/80 font-display text-lg">
+              Votes remaining: <span className="text-quiplash-yellow">{votesRemaining}</span>
+            </span>
+          </motion.div>
+        )}
+
+        <div className="flex-1 flex flex-col gap-4 justify-center overflow-y-auto">
           <AnimatePresence>
-            {votingRound.answers.map((answer, idx) => (
-              <motion.button
-                key={idx}
-                onClick={() => handleVote(answer.playerId)}
-                disabled={selectedVote !== null}
-                className={`
-                  w-full p-6 rounded-xl text-white text-xl font-display transition-all
-                  ${selectedVote === answer.playerId
-                    ? 'bg-gradient-to-r from-quiplash-yellow to-yellow-500 text-quiplash-blue scale-105'
-                    : selectedVote !== null
-                    ? 'bg-white/5 opacity-50'
-                    : 'bg-white/10 hover:bg-white/20 active:scale-95'}
-                `}
-                initial={{ x: idx === 0 ? -50 : 50, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.2 + idx * 0.1, type: 'spring' }}
-                whileHover={selectedVote === null ? { scale: 1.02 } : {}}
-                whileTap={selectedVote === null ? { scale: 0.98 } : {}}
-              >
-                {answer.text}
-              </motion.button>
-            ))}
+            {votingRound.answers.map((answer, idx) => {
+              const myVotes = voteAllocation[answer.playerId] || 0;
+              const isOwnAnswer = answer.playerId === connectionId;
+              const alreadyVoted = myVotes >= 1;
+              const isDisabled = isFinalRound
+                ? (totalVotesUsed >= 3 || isOwnAnswer || alreadyVoted)
+                : selectedVote !== null;
+
+              return (
+                <motion.button
+                  key={idx}
+                  onClick={() => isFinalRound ? handleMultiVote(answer.playerId) : handleVote(answer.playerId)}
+                  disabled={isDisabled}
+                  className={`
+                    w-full p-6 rounded-xl text-white text-xl font-display transition-all relative
+                    ${isOwnAnswer
+                      ? 'bg-white/5 opacity-50 cursor-not-allowed border-2 border-dashed border-white/20'
+                      : !isFinalRound && selectedVote === answer.playerId
+                      ? 'bg-gradient-to-r from-quiplash-yellow to-yellow-500 text-quiplash-blue scale-105'
+                      : !isFinalRound && selectedVote !== null
+                      ? 'bg-white/5 opacity-50'
+                      : isFinalRound && myVotes > 0
+                      ? 'bg-gradient-to-r from-quiplash-yellow/30 to-yellow-500/30 border-2 border-quiplash-yellow'
+                      : 'bg-white/10 hover:bg-white/20 active:scale-95'}
+                  `}
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.1 + idx * 0.05, type: 'spring' }}
+                  whileHover={!isDisabled ? { scale: 1.02 } : {}}
+                  whileTap={!isDisabled ? { scale: 0.98 } : {}}
+                >
+                  {answer.text}
+                  {/* Your answer indicator */}
+                  {isOwnAnswer && (
+                    <span className="absolute top-2 left-2 text-xs text-white/40 font-body">
+                      (yours)
+                    </span>
+                  )}
+                  {/* Vote badge for multi-vote */}
+                  {isFinalRound && myVotes > 0 && (
+                    <span className="absolute top-2 right-2 bg-quiplash-yellow text-quiplash-blue w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold">
+                      ✓
+                    </span>
+                  )}
+                </motion.button>
+              );
+            })}
           </AnimatePresence>
         </div>
       </div>
@@ -495,6 +583,20 @@ function GameView({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
+          {votingRound.prompt.isImagePrompt && votingRound.prompt.imageUrl && (
+            <motion.div
+              className="mb-4"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+            >
+              <img
+                src={votingRound.prompt.imageUrl}
+                alt="Caption this"
+                className="max-h-32 mx-auto rounded-lg shadow-lg"
+              />
+            </motion.div>
+          )}
+
           <motion.h2
             className="text-xl font-display text-quiplash-yellow text-center mb-6"
             initial={{ y: -20, opacity: 0 }}

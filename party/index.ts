@@ -13,6 +13,7 @@ import type {
 
 // Import prompts - in production this would be fetched
 import promptsData from "../data/prompts.json";
+import imagePromptsData from "../data/imagePrompts.json";
 import { getDummyName, getRandomDummyAnswer } from "./dummyData";
 
 const DEFAULT_CONFIG: GameConfig = {
@@ -114,6 +115,10 @@ class QuiplashServer implements Party.Server {
 
         case 'submit_vote':
           this.handleSubmitVote(sender, msg.votedPlayerId);
+          break;
+
+        case 'submit_multi_vote':
+          this.handleSubmitMultiVote(sender, msg.votes);
           break;
 
         case 'next_prompt':
@@ -253,44 +258,53 @@ class QuiplashServer implements Party.Server {
     this.gameState.currentPromptIndex = 0;
     this.gameState.answers = [];
 
-    // Get prompts for this round's category
-    const categoryIndex = Math.min(
-      this.gameState.currentRound - 1,
-      this.gameState.selectedCategories.length - 1
-    );
-    const categoryId = this.gameState.selectedCategories[categoryIndex];
-
-    // Get all prompts for this category
-    const categoryPrompts = (promptsData.prompts as Prompt[]).filter(
-      (p) => p.category === categoryId
-    );
-
-    // Shuffle and select prompts
-    const shuffled = this.shuffleArray([...categoryPrompts]);
     const activePlayers = this.gameState.players.filter((p) => !p.isAudience);
-
-    // Each player gets 2 prompts, each prompt assigned to 2 players
-    const promptsNeeded = activePlayers.length;
-    this.gameState.prompts = shuffled.slice(0, promptsNeeded);
-
-    // Assign prompts to players (each prompt goes to 2 players)
-    this.gameState.promptAssignments = {};
     const playerIds = activePlayers.map((p) => p.id);
 
-    for (let i = 0; i < this.gameState.prompts.length; i++) {
-      const prompt = this.gameState.prompts[i];
-      const player1 = playerIds[i % playerIds.length];
-      const player2 = playerIds[(i + 1) % playerIds.length];
+    // Round 3: "Caption This" - ONE image prompt for ALL players
+    if (this.gameState.currentRound === 3) {
+      // Generate just 1 image prompt
+      this.gameState.prompts = this.generateImagePrompts(1);
+      const prompt = this.gameState.prompts[0];
 
-      if (!this.gameState.promptAssignments[player1]) {
-        this.gameState.promptAssignments[player1] = [];
+      // Assign the single prompt to ALL active players
+      this.gameState.promptAssignments = {};
+      for (const playerId of playerIds) {
+        this.gameState.promptAssignments[playerId] = [prompt.id];
       }
-      if (!this.gameState.promptAssignments[player2]) {
-        this.gameState.promptAssignments[player2] = [];
-      }
+    } else {
+      // Rounds 1-2: Category-based prompts (each prompt to 2 players)
+      const promptsNeeded = activePlayers.length;
+      const categoryIndex = Math.min(
+        this.gameState.currentRound - 1,
+        this.gameState.selectedCategories.length - 1
+      );
+      const categoryId = this.gameState.selectedCategories[categoryIndex];
 
-      this.gameState.promptAssignments[player1].push(prompt.id);
-      this.gameState.promptAssignments[player2].push(prompt.id);
+      const categoryPrompts = (promptsData.prompts as Prompt[]).filter(
+        (p) => p.category === categoryId
+      );
+
+      const shuffled = this.shuffleArray([...categoryPrompts]);
+      this.gameState.prompts = shuffled.slice(0, promptsNeeded);
+
+      // Assign prompts to players (each prompt goes to 2 players)
+      this.gameState.promptAssignments = {};
+      for (let i = 0; i < this.gameState.prompts.length; i++) {
+        const prompt = this.gameState.prompts[i];
+        const player1 = playerIds[i % playerIds.length];
+        const player2 = playerIds[(i + 1) % playerIds.length];
+
+        if (!this.gameState.promptAssignments[player1]) {
+          this.gameState.promptAssignments[player1] = [];
+        }
+        if (!this.gameState.promptAssignments[player2]) {
+          this.gameState.promptAssignments[player2] = [];
+        }
+
+        this.gameState.promptAssignments[player1].push(prompt.id);
+        this.gameState.promptAssignments[player2].push(prompt.id);
+      }
     }
 
     // Transition to answering phase
@@ -436,6 +450,10 @@ class QuiplashServer implements Party.Server {
       (a) => a.promptId === prompt.id
     );
 
+    const isFinalRound = this.gameState.currentRound === 3;
+
+    // Final round: need at least 2 answers from all players
+    // Normal rounds: need exactly 2 answers
     if (promptAnswers.length < 2) {
       // Skip this prompt if not enough answers
       this.gameState.currentPromptIndex++;
@@ -446,8 +464,10 @@ class QuiplashServer implements Party.Server {
     this.gameState.currentVotingRound = {
       promptId: prompt.id,
       prompt,
-      answers: [promptAnswers[0], promptAnswers[1]],
+      // Final round: ALL answers; Normal rounds: just 2
+      answers: isFinalRound ? promptAnswers : [promptAnswers[0], promptAnswers[1]],
       votedPlayerIds: [],
+      isFinalRound,
     };
 
     this.gameState.phase = 'voting';
@@ -475,16 +495,31 @@ class QuiplashServer implements Party.Server {
       // Skip if already voted
       if (voting.votedPlayerIds.includes(player.id)) continue;
 
-      // Skip if this player is an answerer
-      const isAnswerer = voting.answers.some((a) => a.playerId === player.id);
-      if (isAnswerer) continue;
+      // Final round: Multi-vote (3 votes to 3 DIFFERENT answers, not own)
+      if (voting.isFinalRound) {
+        // Get answers this player can vote for (not their own)
+        const eligibleAnswers = voting.answers.filter((a) => a.playerId !== player.id);
+        if (eligibleAnswers.length < 3) continue; // Need at least 3 answers to vote for
 
-      // Pick a random answer to vote for
-      const randomIndex = Math.floor(Math.random() * voting.answers.length);
-      const votedAnswer = voting.answers[randomIndex];
+        // Shuffle and pick 3 different answers
+        const shuffled = this.shuffleArray([...eligibleAnswers]);
+        const selectedAnswers = shuffled.slice(0, 3);
 
-      votedAnswer.votes++;
-      votedAnswer.voterIds.push(player.id);
+        for (const answer of selectedAnswers) {
+          answer.votes++;
+          answer.voterIds.push(player.id);
+        }
+      } else {
+        // Normal rounds: single vote, skip if answerer
+        const isAnswerer = voting.answers.some((a) => a.playerId === player.id);
+        if (isAnswerer) continue;
+
+        const randomIndex = Math.floor(Math.random() * voting.answers.length);
+        const votedAnswer = voting.answers[randomIndex];
+        votedAnswer.votes++;
+        votedAnswer.voterIds.push(player.id);
+      }
+
       voting.votedPlayerIds.push(player.id);
     }
 
@@ -496,11 +531,21 @@ class QuiplashServer implements Party.Server {
   checkVotingComplete() {
     if (!this.gameState || !this.gameState.currentVotingRound) return;
 
+    const isFinalRound = this.gameState.currentVotingRound.isFinalRound;
+
     const eligibleVoters = this.gameState.players.filter((p) => {
+      if (!p.isConnected) return false;
+
+      // Final round: everyone can vote (for others' answers)
+      if (isFinalRound) {
+        return !p.isAudience; // All active players vote
+      }
+
+      // Normal rounds: only non-answerers vote
       const isAnswerer = this.gameState!.currentVotingRound!.answers.some(
         (a) => a.playerId === p.id
       );
-      return p.isConnected && !isAnswerer;
+      return !isAnswerer;
     });
 
     if (this.gameState.currentVotingRound.votedPlayerIds.length >= eligibleVoters.length) {
@@ -542,17 +587,57 @@ class QuiplashServer implements Party.Server {
     this.checkVotingComplete();
   }
 
+  // Handle multi-vote submission (Round 3 only)
+  handleSubmitMultiVote(connection: Party.Connection, votes: Record<string, number>) {
+    if (!this.gameState || this.gameState.phase !== 'voting') return;
+    if (!this.gameState.currentVotingRound) return;
+    if (!this.gameState.currentVotingRound.isFinalRound) return;
+
+    const voter = this.gameState.players.find((p) => p.id === connection.id);
+    if (!voter) return;
+
+    // Already voted?
+    if (this.gameState.currentVotingRound.votedPlayerIds.includes(voter.id)) {
+      return;
+    }
+
+    // Validate total votes === 3
+    const totalVotes = Object.values(votes).reduce((a, b) => a + b, 0);
+    if (totalVotes !== 3) return;
+
+    // Validate: max 1 vote per answer, and can't vote for own answer
+    for (const [playerId, voteCount] of Object.entries(votes)) {
+      if (voteCount > 1) return; // Max 1 vote per answer
+      if (playerId === voter.id && voteCount > 0) return; // Can't vote for own answer
+    }
+
+    // Apply votes
+    for (const [playerId, voteCount] of Object.entries(votes)) {
+      const answer = this.gameState.currentVotingRound.answers.find(
+        (a) => a.playerId === playerId
+      );
+      if (answer && voteCount > 0) {
+        answer.votes += voteCount;
+        answer.voterIds.push(voter.id);
+      }
+    }
+
+    this.gameState.currentVotingRound.votedPlayerIds.push(voter.id);
+    this.broadcastState();
+    this.checkVotingComplete();
+  }
+
   // End voting and show results
   endVotingRound() {
     if (!this.gameState || !this.gameState.currentVotingRound) return;
 
-    // Award points
+    // Award points (200 per vote in Round 3, 100 otherwise)
+    const pointsPerVote = this.gameState.currentRound === 3 ? 200 : 100;
     const answers = this.gameState.currentVotingRound.answers;
     for (const answer of answers) {
       const player = this.gameState.players.find((p) => p.id === answer.playerId);
       if (player) {
-        // 100 points per vote
-        player.score += answer.votes * 100;
+        player.score += answer.votes * pointsPerVote;
 
         // Quiplash bonus (all votes)
         const otherAnswer = answers.find((a) => a.playerId !== answer.playerId);
@@ -711,6 +796,22 @@ class QuiplashServer implements Party.Server {
       clearInterval(this.timerId);
       this.timerId = null;
     }
+  }
+
+  // Generate image-based prompts for "Caption This" round
+  generateImagePrompts(count: number): Prompt[] {
+    const shuffledImages = this.shuffleArray([...imagePromptsData.images]);
+    const selectedImages = shuffledImages.slice(0, count);
+    const captionPrompts = imagePromptsData.captionPrompts;
+
+    return selectedImages.map((image, index) => ({
+      id: `caption-${Date.now()}-${index}`,
+      category: 'caption_this',
+      prompt: captionPrompts[Math.floor(Math.random() * captionPrompts.length)],
+      context: { snippet: '', date: '', participants: [] },
+      imageUrl: `/images/caption/${image.filename}`,
+      isImagePrompt: true,
+    }));
   }
 
   // Helper: Shuffle array
