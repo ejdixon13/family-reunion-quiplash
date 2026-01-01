@@ -130,7 +130,7 @@ export function useTTS(): UseTTSReturn {
         config = getVoiceConfig(familyMemberName);
       } else {
         // Default fallback - use a neutral predefined voice
-        config = { mode: 'predefined', voiceId: 'Jordan', exaggeration: 0.4 };
+        config = { mode: 'predefined', voiceId: 'Jordan.wav', exaggeration: 0.4 };
       }
 
       // Override exaggeration if specified

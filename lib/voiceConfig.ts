@@ -10,14 +10,14 @@ export interface VoiceConfig {
   exaggeration?: number; // 0.0-1.0 for emotion intensity
 }
 
-// Default voices available in Chatterbox-TTS-Server
+// Default voices available in Chatterbox-TTS-Server (with .wav extension)
 // These provide variety for different family members
 const DEFAULT_VOICES = [
-  'Abigail', 'Adrian', 'Alexander', 'Alice', 'Austin', 'Axel',
-  'Connor', 'Cora', 'Elena', 'Eli', 'Emily', 'Everett',
-  'Gabriel', 'Gianna', 'Henry', 'Ian', 'Jade', 'Jeremiah',
-  'Jordan', 'Julian', 'Layla', 'Leonardo', 'Michael', 'Miles',
-  'Olivia', 'Ryan', 'Taylor', 'Thomas',
+  'Abigail.wav', 'Adrian.wav', 'Alexander.wav', 'Alice.wav', 'Austin.wav', 'Axel.wav',
+  'Connor.wav', 'Cora.wav', 'Elena.wav', 'Eli.wav', 'Emily.wav', 'Everett.wav',
+  'Gabriel.wav', 'Gianna.wav', 'Henry.wav', 'Ian.wav', 'Jade.wav', 'Jeremiah.wav',
+  'Jordan.wav', 'Julian.wav', 'Layla.wav', 'Leonardo.wav', 'Michael.wav', 'Miles.wav',
+  'Olivia.wav', 'Ryan.wav', 'Taylor.wav', 'Thomas.wav',
 ];
 
 // Simple hash function to get consistent voice index from name
@@ -71,7 +71,7 @@ export function getVoiceConfig(name: string): VoiceConfig {
 // Using "Michael" for a classic announcer feel
 export const ANNOUNCER_CONFIG: VoiceConfig = {
   mode: 'predefined',
-  voiceId: 'Michael',
+  voiceId: 'Michael.wav',
   exaggeration: 0.7, // High energy for announcements
 };
 
