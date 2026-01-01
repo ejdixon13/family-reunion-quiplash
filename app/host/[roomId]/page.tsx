@@ -16,7 +16,7 @@ export default function HostPage() {
   const roomId = params.roomId as string;
   const [showDevPanel, setShowDevPanel] = useState(false);
   const [showContextOverlay, setShowContextOverlay] = useState(false);
-  const [previousPromptId, setPreviousPromptId] = useState<string | null>(null);
+  const previousPromptId = useRef<string | null>(null);
   const announcedPromptId = useRef<string | null>(null);
 
   const tts = useTTS();
@@ -98,8 +98,8 @@ export default function HostPage() {
 
     if (gameState?.phase === 'vote_results' && currentPromptId) {
       // Only trigger if this is a new prompt (not returning to same results)
-      if (currentPromptId !== previousPromptId) {
-        setPreviousPromptId(currentPromptId);
+      if (currentPromptId !== previousPromptId.current) {
+        previousPromptId.current = currentPromptId;
         setShowContextOverlay(false);
 
         const timer = setTimeout(() => {
@@ -110,9 +110,9 @@ export default function HostPage() {
       }
     } else if (gameState?.phase !== 'vote_results') {
       setShowContextOverlay(false);
-      setPreviousPromptId(null);
+      previousPromptId.current = null;
     }
-  }, [gameState?.phase, gameState?.currentVotingRound?.promptId, previousPromptId]);
+  }, [gameState?.phase, gameState?.currentVotingRound?.promptId]);
 
   const handleContextDismiss = () => {
     setShowContextOverlay(false);
