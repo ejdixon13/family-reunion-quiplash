@@ -1,10 +1,11 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePartySocket } from '@/hooks/usePartySocket';
 import { useTTS } from '@/hooks/useTTS';
+import { useTTSPreload } from '@/hooks/useTTSPreload';
 import { QRCodeDisplay } from '@/app/components/QRCodeDisplay';
 import { CategoryPicker } from '@/app/components/CategoryPicker';
 import { PlayerList } from '@/app/components/PlayerList';
@@ -18,8 +19,10 @@ export default function HostPage() {
   const [showContextOverlay, setShowContextOverlay] = useState(false);
   const previousPromptId = useRef<string | null>(null);
   const announcedPromptId = useRef<string | null>(null);
+  const prefetchedPromptId = useRef<string | null>(null);
 
   const tts = useTTS();
+  const ttsPreload = useTTSPreload();
 
   const {
     gameState,
@@ -47,6 +50,58 @@ export default function HostPage() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  // Start preloading TTS when entering lobby (if TTS enabled)
+  useEffect(() => {
+    if (gameState?.phase === 'lobby' && tts.isEnabled) {
+      ttsPreload.startPreloading();
+    }
+  }, [gameState?.phase, tts.isEnabled, ttsPreload]);
+
+  // Pre-fetch conversation TTS during voting phase
+  useEffect(() => {
+    const votingRound = gameState?.currentVotingRound;
+    const promptId = votingRound?.promptId;
+
+    if (gameState?.phase === 'voting' && votingRound && promptId && tts.isEnabled) {
+      // Only prefetch once per prompt
+      if (promptId !== prefetchedPromptId.current) {
+        prefetchedPromptId.current = promptId;
+
+        // Parse conversation from snippet
+        const snippet = votingRound.prompt.context.snippet;
+        const lines = snippet.split('\n').filter((line: string) => line.trim());
+        const messages = lines
+          .map((line: string) => {
+            const match = line.match(/^(.+?):\s*(.+)$/);
+            if (match) {
+              return { sender: match[1], message: match[2] };
+            }
+            return null;
+          })
+          .filter((msg: { sender: string; message: string } | null): msg is { sender: string; message: string } => msg !== null);
+
+        // Start pre-fetching in background
+        ttsPreload.prefetchConversation(promptId, messages);
+      }
+    }
+  }, [gameState?.phase, gameState?.currentVotingRound, tts.isEnabled, ttsPreload]);
+
+  // Callback to play pre-fetched conversation
+  const handleSpeakDialogue = useCallback(
+    async (messages: Array<{ sender: string; message: string }>, delayMs = 150) => {
+      const promptId = gameState?.currentVotingRound?.promptId;
+
+      if (promptId && ttsPreload.isConversationReady(promptId)) {
+        // Use pre-fetched audio
+        await ttsPreload.playConversation(promptId, delayMs);
+      } else {
+        // Fall back to on-demand generation
+        await tts.speakDialogue(messages, delayMs);
+      }
+    },
+    [gameState?.currentVotingRound?.promptId, ttsPreload, tts]
+  );
+
   // TTS announcement when entering vote_results phase
   useEffect(() => {
     const currentPromptId = gameState?.currentVotingRound?.promptId;
@@ -63,34 +118,34 @@ export default function HostPage() {
         const totalVotes = votingRound.answers.reduce((sum, a) => sum + a.votes, 0);
         const isQuiplash = winner && winner.votes === totalVotes && totalVotes > 0;
 
-        // Build announcement
-        const announcements: string[] = [];
+        // Use pre-generated "votes are in" announcement, then custom for winner
+        (async () => {
+          // Play pre-generated "votes are in"
+          await ttsPreload.playAnnouncement('votesAreIn');
 
-        if (winner && winner.votes > 0) {
-          // Announce winning answer
-          announcements.push(`The votes are in!`);
-          announcements.push(winner.text);
+          // Small delay then announce the winning answer
+          setTimeout(async () => {
+            if (winner && winner.votes > 0) {
+              await ttsPreload.playCustomAnnouncement(winner.text, `answer-${currentPromptId}`);
 
-          if (isQuiplash) {
-            announcements.push(`[laugh] It's a Quiplash! ${winner.playerName} gets the bonus!`);
-          } else {
-            announcements.push(`${winner.playerName} wins with ${winner.votes} vote${winner.votes !== 1 ? 's' : ''}!`);
-          }
-        } else {
-          announcements.push(`It's a tie! No winner this round.`);
-        }
-
-        // Queue announcements with slight delays
-        announcements.forEach((text, i) => {
-          setTimeout(() => {
-            tts.speakAnnouncement(text);
-          }, i * 1500);
-        });
+              setTimeout(async () => {
+                if (isQuiplash) {
+                  await ttsPreload.playAnnouncement('quiplash');
+                } else {
+                  await ttsPreload.playCustomAnnouncement(
+                    `${winner.playerName} wins with ${winner.votes} vote${winner.votes !== 1 ? 's' : ''}!`,
+                    `winner-${currentPromptId}`
+                  );
+                }
+              }, 2000);
+            }
+          }, 1500);
+        })();
       }
     } else if (gameState?.phase !== 'vote_results') {
       announcedPromptId.current = null;
     }
-  }, [gameState?.phase, gameState?.currentVotingRound, tts]);
+  }, [gameState?.phase, gameState?.currentVotingRound, ttsPreload]);
 
   // Context reveal timing - show after 3 seconds in vote_results phase
   useEffect(() => {
@@ -163,28 +218,35 @@ export default function HostPage() {
           <p className="text-white/60 text-lg font-body">Room: {roomId}</p>
 
           {/* TTS Controls */}
-          <div className="flex justify-center gap-2 mt-4">
-            <button
-              onClick={() => tts.speakAnnouncement('The votes are in! [laugh] It\'s a Quiplash!')}
-              disabled={tts.isPlaying}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                tts.isPlaying
-                  ? 'bg-green-500/50 text-white animate-pulse'
-                  : 'bg-purple-500/80 hover:bg-purple-500 text-white hover:scale-105'
-              }`}
-            >
-              {tts.isPlaying ? '🔊 Playing...' : '🎤 Test TTS'}
-            </button>
-            <button
-              onClick={() => tts.setEnabled(!tts.isEnabled)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all hover:scale-105 ${
-                tts.isEnabled
-                  ? 'bg-green-500/80 hover:bg-green-500 text-white'
-                  : 'bg-red-500/80 hover:bg-red-500 text-white'
-              }`}
-            >
-              {tts.isEnabled ? '🔊 TTS On' : '🔇 TTS Off'}
-            </button>
+          <div className="flex flex-col items-center gap-2 mt-4">
+            <div className="flex justify-center gap-2">
+              <button
+                onClick={() => ttsPreload.playAnnouncement('gameIntro')}
+                disabled={tts.isPlaying || ttsPreload.isPreloading}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  tts.isPlaying
+                    ? 'bg-green-500/50 text-white animate-pulse'
+                    : ttsPreload.isPreloading
+                    ? 'bg-yellow-500/50 text-white'
+                    : 'bg-purple-500/80 hover:bg-purple-500 text-white hover:scale-105'
+                }`}
+              >
+                {tts.isPlaying ? '🔊 Playing...' : ttsPreload.isPreloading ? '⏳ Loading...' : '🎤 Test TTS'}
+              </button>
+              <button
+                onClick={() => tts.setEnabled(!tts.isEnabled)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all hover:scale-105 ${
+                  tts.isEnabled
+                    ? 'bg-green-500/80 hover:bg-green-500 text-white'
+                    : 'bg-red-500/80 hover:bg-red-500 text-white'
+                }`}
+              >
+                {tts.isEnabled ? '🔊 TTS On' : '🔇 TTS Off'}
+              </button>
+            </div>
+            {ttsPreload.preloadProgress && (
+              <p className="text-white/50 text-xs">{ttsPreload.preloadProgress}</p>
+            )}
           </div>
         </motion.div>
 
@@ -699,7 +761,7 @@ export default function HostPage() {
           participants={gameState.currentVotingRound.prompt.context.participants}
           isVisible={showContextOverlay}
           onComplete={handleContextDismiss}
-          onSpeakDialogue={tts.speakDialogue}
+          onSpeakDialogue={handleSpeakDialogue}
         />
       )}
     </div>
