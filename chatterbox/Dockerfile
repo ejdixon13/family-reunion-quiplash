@@ -29,4 +29,4 @@ ENV HOST=0.0.0.0
 ENV PORT=8004
 
 # Run the server
-CMD ["python", "main.py"]
+CMD ["python", "server.py"]
