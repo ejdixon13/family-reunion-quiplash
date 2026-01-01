@@ -43,40 +43,36 @@ async function generateTTS(
   text: string,
   config: VoiceConfig
 ): Promise<Blob> {
-  const params = new URLSearchParams({
+  // Build request body matching Chatterbox-TTS-Server API
+  const requestBody: Record<string, unknown> = {
     text,
     voice_mode: config.mode === 'clone' ? 'clone' : 'predefined',
-  });
+    output_format: 'wav',
+  };
 
   if (config.seed !== undefined) {
-    params.set('seed', config.seed.toString());
+    requestBody.seed = config.seed;
   }
 
   if (config.cloneFile) {
-    params.set('predefined_voice', config.cloneFile);
+    requestBody.predefined_voice_id = config.cloneFile;
   }
 
   if (config.exaggeration !== undefined) {
-    params.set('exaggeration', config.exaggeration.toString());
+    requestBody.exaggeration = config.exaggeration;
   }
 
-  const response = await fetch(`${TTS_API_ENDPOINT}?${params.toString()}`, {
+  const response = await fetch(TTS_API_ENDPOINT, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      text,
-      voice_mode: config.mode === 'clone' ? 'clone' : 'predefined',
-      seed: config.seed,
-      predefined_voice: config.cloneFile,
-      exaggeration: config.exaggeration,
-      output_format: 'wav',
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
-    throw new Error(`TTS API error: ${response.status} ${response.statusText}`);
+    const errorText = await response.text().catch(() => '');
+    throw new Error(`TTS API error: ${response.status} ${response.statusText} - ${errorText}`);
   }
 
   return response.blob();
