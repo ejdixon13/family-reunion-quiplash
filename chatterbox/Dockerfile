@@ -1,26 +1,20 @@
-FROM python:3.11-slim
+FROM python:3.10-slim
 
 WORKDIR /app
 
-# Install system dependencies including build tools
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
     libsndfile1 \
     ffmpeg \
-    cmake \
-    build-essential \
-    protobuf-compiler \
-    libprotobuf-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Clone Chatterbox-TTS-Server
 RUN git clone https://github.com/devnen/Chatterbox-TTS-Server.git .
 
 # Install CPU-only requirements
-# Pin protobuf and onnx versions for compatibility with s3tokenizer
+# Use --extra-index-url for PyTorch CPU wheels
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir "protobuf>=3.19,<3.20" && \
-    pip install --no-cache-dir "onnx==1.14.1" && \
     pip install --no-cache-dir -r requirements.txt
 
 # Create voices directory
