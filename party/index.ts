@@ -352,9 +352,15 @@ class QuiplashServer implements Party.Server {
     });
   }
 
-  // Submit answers for dummy players
+  // Submit answers for dummy players (skip Round 3 - only humans answer)
   submitDummyAnswers() {
     if (!this.gameState) return;
+
+    // Round 3: Only human players answer the image caption prompt
+    if (this.gameState.currentRound === 3) {
+      console.log(`[ANSWERING] Round 3: Skipping dummy answers`);
+      return;
+    }
 
     const dummyPlayers = this.gameState.players.filter(
       (p) => p.isDummy && !p.isAudience
@@ -411,10 +417,19 @@ class QuiplashServer implements Party.Server {
     this.broadcastState();
 
     // Check if all answers are in
-    const activePlayers = this.gameState.players.filter((p) => !p.isAudience);
-    const totalExpectedAnswers = this.gameState.prompts.length * 2; // 2 answers per prompt
+    const activePlayers = this.gameState.players.filter((p) => !p.isAudience && !p.isDummy);
+    const isFinalRound = this.gameState.currentRound === 3;
+
+    // Round 3: ALL players answer 1 prompt (no dummies in round 3)
+    // Rounds 1-2: 2 answers per prompt
+    const totalExpectedAnswers = isFinalRound
+      ? activePlayers.length
+      : this.gameState.prompts.length * 2;
+
+    console.log(`[ANSWERING] Answer submitted. Total: ${this.gameState.answers.length}/${totalExpectedAnswers} (Round 3=${isFinalRound})`);
 
     if (this.gameState.answers.length >= totalExpectedAnswers) {
+      console.log(`[ANSWERING] All answers in, ending phase`);
       this.clearTimer();
       this.endAnsweringPhase();
     }
