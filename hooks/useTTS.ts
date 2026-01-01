@@ -129,7 +129,8 @@ export function useTTS(): UseTTSReturn {
       } else if (familyMemberName) {
         config = getVoiceConfig(familyMemberName);
       } else {
-        config = { mode: 'seed', seed: 12345 }; // Default fallback
+        // Default fallback - use a neutral predefined voice
+        config = { mode: 'predefined', voiceId: 'Jordan', exaggeration: 0.4 };
       }
 
       // Override exaggeration if specified
