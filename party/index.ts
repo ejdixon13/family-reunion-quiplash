@@ -476,7 +476,11 @@ class QuiplashServer implements Party.Server {
     // Schedule dummy votes with a small random delay
     setTimeout(() => this.submitDummyVotes(), 1000 + Math.random() * 2000);
 
-    this.startTimer(this.gameState.config.voteTimeSeconds, () => {
+    // Round 3 gets more voting time (need to review all captions and pick 3)
+    const voteTime = isFinalRound
+      ? 45
+      : this.gameState.config.voteTimeSeconds;
+    this.startTimer(voteTime, () => {
       this.endVotingRound();
     });
   }
