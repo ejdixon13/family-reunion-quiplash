@@ -100,31 +100,31 @@ export function ContextRevealOverlay({
 
           {/* WhatsApp Phone Frame */}
           <motion.div
-            className="relative w-full max-w-md mx-4 rounded-3xl overflow-hidden shadow-2xl"
+            className="relative w-full max-w-2xl mx-4 rounded-3xl overflow-hidden shadow-2xl"
             initial={{ scale: 0.8, y: 50 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.8, y: 50 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
           >
             {/* WhatsApp Header */}
-            <div className="bg-whatsapp-teal px-4 py-3 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                <span className="text-white text-lg">👥</span>
+            <div className="bg-whatsapp-teal px-6 py-4 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                <span className="text-white text-2xl">👥</span>
               </div>
               <div className="flex-1">
-                <h3 className="text-white font-semibold text-sm truncate">
+                <h3 className="text-white font-semibold text-lg truncate">
                   Family Chat
                 </h3>
-                <p className="text-white/70 text-xs">
+                <p className="text-white/70 text-base">
                   {participants.join(', ')}
                 </p>
               </div>
-              <span className="text-white/60 text-xs">{date}</span>
+              <span className="text-white/60 text-sm">{date}</span>
             </div>
 
             {/* "Behind the Joke" Label */}
             <motion.div
-              className="bg-quiplash-yellow text-quiplash-blue font-display text-center py-2 font-bold text-lg"
+              className="bg-quiplash-yellow text-quiplash-blue font-display text-center py-3 font-bold text-2xl"
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
@@ -134,12 +134,12 @@ export function ContextRevealOverlay({
 
             {/* Chat Area */}
             <div
-              className="p-4 min-h-[300px] max-h-[60vh] overflow-y-auto"
+              className="p-6 min-h-[300px] max-h-[60vh] overflow-y-auto"
               style={{
                 background: `#ECE5DD url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4cdc4' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
               }}
             >
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {messages.map((msg, index) => (
                   <motion.div
                     key={index}
@@ -155,7 +155,7 @@ export function ContextRevealOverlay({
                   >
                     <div
                       className={`
-                        max-w-[85%] px-3 py-2 rounded-lg shadow-sm relative
+                        max-w-[85%] px-4 py-3 rounded-xl shadow-sm relative
                         ${msg.isOutgoing
                           ? 'bg-whatsapp-outgoing rounded-br-none'
                           : 'bg-white rounded-bl-none'
@@ -165,7 +165,7 @@ export function ContextRevealOverlay({
                       {/* Sender name */}
                       {msg.sender && (
                         <p
-                          className={`text-xs font-bold mb-1 ${
+                          className={`text-base font-bold mb-1 ${
                             msg.isOutgoing ? 'text-emerald-700' : 'text-purple-600'
                           }`}
                         >
@@ -173,7 +173,7 @@ export function ContextRevealOverlay({
                         </p>
                       )}
                       {/* Message text */}
-                      <p className="text-gray-800 text-sm leading-relaxed">
+                      <p className="text-gray-800 text-xl leading-relaxed">
                         {msg.message}
                       </p>
                       {/* Bubble tail */}
@@ -199,7 +199,7 @@ export function ContextRevealOverlay({
 
             {/* Bottom hint */}
             <motion.div
-              className="bg-gray-800 text-white/60 text-center py-3 text-sm"
+              className="bg-gray-800 text-white/60 text-center py-4 text-lg"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 + messages.length * 0.15 }}

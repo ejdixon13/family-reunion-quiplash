@@ -652,7 +652,7 @@ function GameView({
                   >
                     {answer.votes} vote{answer.votes !== 1 ? 's' : ''}
                     <span className="text-sm ml-1">
-                      (+{answer.votes * 100}{isQuiplash ? ' +250' : ''})
+                      (+{answer.votes * (gameState.currentRound === 3 ? 200 : 100)}{isQuiplash ? ' +250' : ''})
                     </span>
                   </motion.p>
                 </motion.div>
