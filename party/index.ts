@@ -25,6 +25,10 @@ const DEFAULT_CONFIG: GameConfig = {
   roundsPerGame: 3,
 };
 
+// Storage keys for prompt history
+const STORAGE_KEY_USED_PROMPTS = 'usedPromptIds'; // Record<category, string[]>
+const STORAGE_KEY_USED_IMAGES = 'usedImageFilenames'; // string[]
+
 class QuiplashServer implements Party.Server {
   constructor(readonly room: Party.Room) {}
 
@@ -35,6 +39,9 @@ class QuiplashServer implements Party.Server {
   hostPk: string | null = null;
   // Map connection.id to _pk for lookups
   connectionToPk: Map<string, string> = new Map();
+  // In-memory cache of used prompts (loaded from storage on first use)
+  usedPromptsByCategory: Record<string, Set<string>> | null = null;
+  usedImageFilenames: Set<string> | null = null;
 
   // Initialize game state
   initializeGame(): GameState {
@@ -251,7 +258,7 @@ class QuiplashServer implements Party.Server {
   }
 
   // Start a new round
-  startRound() {
+  async startRound() {
     if (!this.gameState) return;
 
     this.gameState.currentRound++;
@@ -263,8 +270,8 @@ class QuiplashServer implements Party.Server {
 
     // Round 3: "Caption This" - ONE image prompt for ALL players
     if (this.gameState.currentRound === 3) {
-      // Generate just 1 image prompt
-      this.gameState.prompts = this.generateImagePrompts(1);
+      // Generate just 1 image prompt (filters out recently used images)
+      this.gameState.prompts = await this.generateImagePrompts(1);
       const prompt = this.gameState.prompts[0];
 
       // Assign the single prompt to ALL active players
@@ -281,12 +288,16 @@ class QuiplashServer implements Party.Server {
       );
       const categoryId = this.gameState.selectedCategories[categoryIndex];
 
-      const categoryPrompts = (promptsData.prompts as Prompt[]).filter(
-        (p) => p.category === categoryId
-      );
-
-      const shuffled = this.shuffleArray([...categoryPrompts]);
+      // Get prompts not recently used in this room
+      const availablePrompts = await this.getAvailablePrompts(categoryId);
+      const shuffled = this.shuffleArray([...availablePrompts]);
       this.gameState.prompts = shuffled.slice(0, promptsNeeded);
+
+      // Mark selected prompts as used
+      await this.markPromptsUsed(
+        categoryId,
+        this.gameState.prompts.map((p) => p.id)
+      );
 
       // Assign prompts to players (each prompt goes to 2 players)
       this.gameState.promptAssignments = {};
@@ -803,10 +814,15 @@ class QuiplashServer implements Party.Server {
   }
 
   // Generate image-based prompts for "Caption This" round
-  generateImagePrompts(count: number): Prompt[] {
-    const shuffledImages = this.shuffleArray([...imagePromptsData.images]);
+  async generateImagePrompts(count: number): Promise<Prompt[]> {
+    // Get images not recently used in this room
+    const availableImages = await this.getAvailableImages();
+    const shuffledImages = this.shuffleArray([...availableImages]);
     const selectedImages = shuffledImages.slice(0, count);
     const captionPrompts = imagePromptsData.captionPrompts;
+
+    // Mark selected images as used
+    await this.markImagesUsed(selectedImages.map((img) => img.filename));
 
     return selectedImages.map((image, index) => ({
       id: `caption-${Date.now()}-${index}`,
@@ -826,6 +842,116 @@ class QuiplashServer implements Party.Server {
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     return shuffled;
+  }
+
+  // Load used prompts from storage (lazy initialization)
+  async loadUsedPrompts(): Promise<Record<string, Set<string>>> {
+    if (this.usedPromptsByCategory !== null) {
+      return this.usedPromptsByCategory;
+    }
+
+    const stored = await this.room.storage.get<Record<string, string[]>>(STORAGE_KEY_USED_PROMPTS);
+    if (stored) {
+      // Convert arrays back to Sets
+      this.usedPromptsByCategory = {};
+      for (const [category, ids] of Object.entries(stored)) {
+        this.usedPromptsByCategory[category] = new Set(ids);
+      }
+    } else {
+      this.usedPromptsByCategory = {};
+    }
+    return this.usedPromptsByCategory;
+  }
+
+  // Save used prompts to storage
+  async saveUsedPrompts(): Promise<void> {
+    if (!this.usedPromptsByCategory) return;
+
+    // Convert Sets to arrays for JSON storage
+    const toStore: Record<string, string[]> = {};
+    for (const [category, ids] of Object.entries(this.usedPromptsByCategory)) {
+      toStore[category] = Array.from(ids);
+    }
+    await this.room.storage.put(STORAGE_KEY_USED_PROMPTS, toStore);
+  }
+
+  // Mark prompts as used for a category
+  async markPromptsUsed(category: string, promptIds: string[]): Promise<void> {
+    const used = await this.loadUsedPrompts();
+    if (!used[category]) {
+      used[category] = new Set();
+    }
+    for (const id of promptIds) {
+      used[category].add(id);
+    }
+    await this.saveUsedPrompts();
+  }
+
+  // Get available prompts for a category (filters out used ones, resets if exhausted)
+  async getAvailablePrompts(category: string): Promise<Prompt[]> {
+    const allCategoryPrompts = (promptsData.prompts as Prompt[]).filter(
+      (p) => p.category === category
+    );
+
+    const used = await this.loadUsedPrompts();
+    const usedIds = used[category] || new Set();
+
+    // Filter out used prompts
+    let available = allCategoryPrompts.filter((p) => !usedIds.has(p.id));
+
+    // If we've used all (or almost all) prompts, reset the category
+    if (available.length < 1) {
+      console.log(`[PromptHistory] Category "${category}" exhausted (${usedIds.size}/${allCategoryPrompts.length} used). Resetting.`);
+      used[category] = new Set();
+      await this.saveUsedPrompts();
+      available = allCategoryPrompts;
+    }
+
+    return available;
+  }
+
+  // Load used images from storage (lazy initialization)
+  async loadUsedImages(): Promise<Set<string>> {
+    if (this.usedImageFilenames !== null) {
+      return this.usedImageFilenames;
+    }
+
+    const stored = await this.room.storage.get<string[]>(STORAGE_KEY_USED_IMAGES);
+    this.usedImageFilenames = new Set(stored || []);
+    return this.usedImageFilenames;
+  }
+
+  // Save used images to storage
+  async saveUsedImages(): Promise<void> {
+    if (!this.usedImageFilenames) return;
+    await this.room.storage.put(STORAGE_KEY_USED_IMAGES, Array.from(this.usedImageFilenames));
+  }
+
+  // Mark images as used
+  async markImagesUsed(filenames: string[]): Promise<void> {
+    const used = await this.loadUsedImages();
+    for (const filename of filenames) {
+      used.add(filename);
+    }
+    await this.saveUsedImages();
+  }
+
+  // Get available images (filters out used ones, resets if exhausted)
+  async getAvailableImages(): Promise<typeof imagePromptsData.images> {
+    const allImages = imagePromptsData.images;
+    const used = await this.loadUsedImages();
+
+    let available = allImages.filter((img) => !used.has(img.filename));
+
+    // If we've used all images, reset
+    if (available.length < 1) {
+      console.log(`[PromptHistory] Images exhausted (${used.size}/${allImages.length} used). Resetting.`);
+      this.usedImageFilenames = new Set();
+      await this.saveUsedImages();
+      available = allImages;
+    }
+
+    return available;
   }
 
   // Handle HTTP requests (required for some environments)

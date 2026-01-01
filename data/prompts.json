@@ -264,19 +264,19 @@
       "category": "family_traditions",
       "prompt": "Dale's secret COVID cure recipe includes:",
       "context": {
-        "snippet": "Modge Podge: Dale was sick last week, but his health plan of Coke and hash browns fried in plenty of olive oil got him back in the saddle pretty quickly",
+        "snippet": "Mom: Dale was sick last week, but his health plan of Coke and hash browns fried in plenty of olive oil got him back in the saddle pretty quickly",
         "date": "6/17/25",
-        "participants": ["Modge Podge"]
+        "participants": ["Mom"]
       }
     },
     {
       "id": "trad-004",
       "category": "family_traditions",
-      "prompt": "What does Modge Podge always end her messages with?",
+      "prompt": "What does Mom always end her messages with?",
       "context": {
-        "snippet": "Modge Podge: Happy Birthday Morgan ❤️\nModge Podge: Love you!! ❣️❣️❣️",
+        "snippet": "Mom: Happy Birthday Morgan ❤️\nMom: Love you!! ❣️❣️❣️",
         "date": "Various",
-        "participants": ["Modge Podge"]
+        "participants": ["Mom"]
       }
     },
     {
@@ -362,11 +362,11 @@
     {
       "id": "trad-013",
       "category": "family_traditions",
-      "prompt": "What did Modge Podge accidentally call Damian on his birthday?",
+      "prompt": "What did Mom accidentally call Damian on his birthday?",
       "context": {
-        "snippet": "Modge Podge: Happy Birthday Axel 🥰🎉\nMogey: Can't be axel's birthday? He was born a week after Ava\nModge Podge: You are right 😂 I meant Happy Birthday Damian",
+        "snippet": "Mom: Happy Birthday Axel 🥰🎉\nMogey: Can't be axel's birthday? He was born a week after Ava\nMom: You are right 😂 I meant Happy Birthday Damian",
         "date": "7/3/25",
-        "participants": ["Modge Podge", "Mogey"]
+        "participants": ["Mom", "Mogey"]
       }
     },
     {
@@ -514,11 +514,11 @@
     {
       "id": "say-001",
       "category": "what_would_they_say",
-      "prompt": "What would Modge Podge text at 11 PM on a weeknight?",
+      "prompt": "What would Mom text at 11 PM on a weeknight?",
       "context": {
-        "snippet": "Modge Podge: HAPPY NEW YEAR ALL YOU WONDERFUL PEOPLE ❣️🥰💕\nModge Podge: Happy Birthday lovely Morgan 💕\n[Always includes heart emojis and encouraging words]",
+        "snippet": "Mom: HAPPY NEW YEAR ALL YOU WONDERFUL PEOPLE ❣️🥰💕\nMom: Happy Birthday lovely Morgan 💕\n[Always includes heart emojis and encouraging words]",
         "date": "Various",
-        "participants": ["Modge Podge"]
+        "participants": ["Mom"]
       }
     },
     {
@@ -526,9 +526,9 @@
       "category": "what_would_they_say",
       "prompt": "What would Mase say if asked to bring a dish to dinner?",
       "context": {
-        "snippet": "Modge Podge: How about the frame - or under bed trundle???\nMase: Nah, just need the mattress",
+        "snippet": "Mom: How about the frame - or under bed trundle???\nMase: Nah, just need the mattress",
         "date": "1/22/25",
-        "participants": ["Modge Podge", "Mase"]
+        "participants": ["Mom", "Mase"]
       }
     },
     {
