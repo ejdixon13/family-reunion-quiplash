@@ -9,8 +9,11 @@ services:
     ports:
       - "8004:8004"
     volumes:
-      - ./chatterbox/voices:/app/voices
+      # Keep model cache persistent (large download)
       - chatterbox-cache:/root/.cache/huggingface
+      # Note: Default voices are included in the image from git clone
+      # To add custom voices, copy them into the running container:
+      # docker cp myvoice.wav chatterbox:/app/voices/
     environment:
       - HOST=0.0.0.0
       - PORT=8004

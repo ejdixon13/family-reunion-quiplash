@@ -46,16 +46,19 @@ async function generateTTS(
   // Build request body matching Chatterbox-TTS-Server API
   const requestBody: Record<string, unknown> = {
     text,
-    voice_mode: config.mode === 'clone' ? 'clone' : 'predefined',
+    voice_mode: config.mode,
     output_format: 'wav',
   };
 
-  if (config.seed !== undefined) {
-    requestBody.seed = config.seed;
+  // Set voice ID based on mode
+  if (config.mode === 'predefined') {
+    requestBody.predefined_voice_id = config.voiceId;
+  } else if (config.mode === 'clone') {
+    requestBody.reference_audio_filename = config.voiceId;
   }
 
-  if (config.cloneFile) {
-    requestBody.predefined_voice_id = config.cloneFile;
+  if (config.seed !== undefined) {
+    requestBody.seed = config.seed;
   }
 
   if (config.exaggeration !== undefined) {
