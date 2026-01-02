@@ -226,8 +226,7 @@ export default function HostPage() {
     }
   }, [gameState?.phase, gameState?.currentVotingRound, audio]);
 
-  // Context reveal timing - show after results and Quiplash announcement
-  // Votes reveal at ~1s, Quiplash at ~0.5s, so wait 4s total to let it sink in
+  // Context reveal timing - show 3s after results, auto-dismiss after 10s
   useEffect(() => {
     const currentPromptId = gameState?.currentVotingRound?.promptId;
 
@@ -237,11 +236,20 @@ export default function HostPage() {
         previousPromptId.current = currentPromptId;
         setShowContextOverlay(false);
 
-        const timer = setTimeout(() => {
+        // Show conversation after 3 seconds
+        const showTimer = setTimeout(() => {
           setShowContextOverlay(true);
-        }, 4000); // 4 seconds after results to show conversation
+        }, 3000);
 
-        return () => clearTimeout(timer);
+        // Auto-dismiss after 10 seconds of being shown (3s + 10s = 13s total)
+        const hideTimer = setTimeout(() => {
+          setShowContextOverlay(false);
+        }, 13000);
+
+        return () => {
+          clearTimeout(showTimer);
+          clearTimeout(hideTimer);
+        };
       }
     } else if (gameState?.phase !== 'vote_results') {
       setShowContextOverlay(false);
@@ -543,65 +551,29 @@ export default function HostPage() {
           </motion.div>
         )}
 
-        {/* Voting Phase */}
+        {/* Voting Phase - Show prompt and answers together with "Time to Vote" */}
         {gameState.phase === 'voting' && gameState.currentVotingRound && (
           <motion.div
-            className="text-center space-y-8"
+            className="text-center space-y-6"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
-            {/* Voting Intro Animation */}
-            <AnimatePresence mode="wait">
-              {showVotingIntro && (
-                <motion.div
-                  key="voting-intro"
-                  className="flex flex-col items-center justify-center min-h-[400px]"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 1.2 }}
-                  transition={{ duration: 0.4 }}
-                >
-                  <motion.div
-                    className="text-8xl mb-6"
-                    animate={{
-                      scale: [1, 1.2, 1],
-                      rotate: [0, -5, 5, 0],
-                    }}
-                    transition={{
-                      duration: 0.6,
-                      repeat: 2,
-                      ease: 'easeInOut',
-                    }}
-                  >
-                    🗳️
-                  </motion.div>
-                  <motion.h2
-                    className="quiplash-title text-6xl"
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                  >
-                    Time to Vote!
-                  </motion.h2>
-                  <motion.p
-                    className="text-white/60 text-xl mt-4 font-body"
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.4 }}
-                  >
-                    Pick your favorite answer!
-                  </motion.p>
-                </motion.div>
-              )}
+            {/* Time to Vote header */}
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', damping: 15 }}
+            >
+              <h2 className="quiplash-title text-5xl mb-2">🗳️ Time to Vote!</h2>
+              <Timer seconds={gameState.timer} maxSeconds={gameState.config.voteTimeSeconds} />
+            </motion.div>
 
-              {showVotingContent && (
-                <motion.div
-                  key="voting-content"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <Timer seconds={gameState.timer} maxSeconds={gameState.config.voteTimeSeconds} />
+            {/* Content area with prompt and answers */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
 
                   <motion.div
                     className="glass-card p-8 mt-8"
@@ -658,7 +630,7 @@ export default function HostPage() {
                         ))}
                       </div>
                     ) : (
-                      /* Normal rounds: 2 answers with VS */
+                      /* Normal rounds: 2 answers revealed one at a time */
                       <>
                         <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
                           {gameState.currentVotingRound.answers.map((answer, idx) => (
@@ -668,13 +640,15 @@ export default function HostPage() {
                               initial={{
                                 x: idx === 0 ? -100 : 100,
                                 opacity: 0,
+                                scale: 0.8,
                                 rotateY: idx === 0 ? -15 : 15,
                               }}
-                              animate={{ x: 0, opacity: 1, rotateY: 0 }}
+                              animate={{ x: 0, opacity: 1, scale: 1, rotateY: 0 }}
                               transition={{
-                                delay: 0.3 + idx * 0.2,
+                                delay: 0.5 + idx * 2.0, // First at 0.5s, second at 2.5s
                                 type: 'spring',
-                                damping: 20,
+                                damping: 15,
+                                stiffness: 100,
                               }}
                             >
                               <p className="text-white text-2xl font-display">{answer.text}</p>
@@ -682,31 +656,33 @@ export default function HostPage() {
                           ))}
                         </div>
 
-                        {/* VS indicator */}
+                        {/* VS indicator - appears between the two answers */}
                         <motion.div
                           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:block"
                           initial={{ scale: 0, rotate: -180 }}
                           animate={{ scale: 1, rotate: 0 }}
-                          transition={{ delay: 0.5, type: 'spring' }}
+                          transition={{ delay: 1.5, type: 'spring', damping: 10 }}
                         >
-                          <span className="text-4xl font-display text-quiplash-pink">VS</span>
+                          <span className="text-6xl font-display text-quiplash-pink">VS</span>
                         </motion.div>
                       </>
                     )}
                   </motion.div>
 
-                  {/* Vote count hidden during voting - just show "Vote now!" */}
+                  {/* Vote prompt - appears after answers are revealed */}
                   <motion.div
                     className="text-white/60 font-body mt-4 text-xl"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: 0.7 }}
+                    transition={{
+                      delay: gameState.currentVotingRound.isFinalRound
+                        ? 1.5 + gameState.currentVotingRound.answers.length * 1.2 + 1
+                        : 3.5 // After both answers shown (0.5s + 2.5s + buffer)
+                    }}
                   >
                     Vote on your device now!
                   </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            </motion.div>
           </motion.div>
         )}
 

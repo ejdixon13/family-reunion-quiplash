@@ -19,7 +19,7 @@ import { getDummyName, getRandomDummyAnswer } from "./dummyData";
 const DEFAULT_CONFIG: GameConfig = {
   answerTimeSeconds: 60,
   voteTimeSeconds: 20,
-  resultsTimeSeconds: 25, // 8s for results + time for conversation animation
+  resultsTimeSeconds: 15, // 3s results + 10s conversation + 2s buffer
   minPlayers: 3,
   maxActivePlayers: 8,
   roundsPerGame: 3,
