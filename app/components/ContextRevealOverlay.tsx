@@ -49,9 +49,8 @@ export function ContextRevealOverlay({
         })
         .filter((msg): msg is { sender: string; message: string } => msg !== null);
 
-      // Start TTS immediately - no delay! Audio should be pre-fetched
-      // Use shorter stagger to keep up with animation
-      const staggerMs = 100;
+      // Start TTS with slower stagger to match the animation (0.8s = 800ms per message)
+      const staggerMs = 800;
       onSpeakDialogue(dialogueMessages, staggerMs);
     }
 
@@ -147,7 +146,7 @@ export function ContextRevealOverlay({
                     initial={{ opacity: 0, x: msg.isOutgoing ? 50 : -50, scale: 0.8 }}
                     animate={{ opacity: 1, x: 0, scale: 1 }}
                     transition={{
-                      delay: 0.4 + index * 0.15,
+                      delay: 0.6 + index * 0.8, // Slower: 0.8 seconds between messages
                       type: 'spring',
                       damping: 20,
                       stiffness: 300,
@@ -202,7 +201,7 @@ export function ContextRevealOverlay({
               className="bg-gray-800 text-white/60 text-center py-4 text-lg"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 + messages.length * 0.15 }}
+              transition={{ delay: 1.0 + messages.length * 0.8 }} // Match slower animation
             >
               Tap anywhere to continue
             </motion.div>

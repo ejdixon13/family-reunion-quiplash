@@ -622,22 +622,37 @@ export default function HostPage() {
                     </h2>
 
                     {gameState.currentVotingRound.isFinalRound ? (
-                      /* Final round: show all answers in a grid */
+                      /* Final round: show answers appearing one by one with dramatic timing */
                       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
                         {gameState.currentVotingRound.answers.map((answer, idx) => (
                           <motion.div
                             key={idx}
                             className="answer-card cursor-default p-4"
-                            initial={{ y: 30, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
+                            initial={{ y: 50, opacity: 0, scale: 0.8, rotateX: -15 }}
+                            animate={{ y: 0, opacity: 1, scale: 1, rotateX: 0 }}
                             transition={{
-                              delay: 0.2 + idx * 0.1,
+                              delay: 1.5 + idx * 1.2, // Stagger by 1.2 seconds per answer
                               type: 'spring',
-                              damping: 20,
+                              damping: 15,
+                              stiffness: 100,
                             }}
                           >
-                            <p className="text-white text-xl font-display">{answer.text}</p>
-                            <p className="text-white/50 text-sm font-body mt-2">- {answer.playerName}</p>
+                            <motion.p
+                              className="text-white text-xl font-display"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ delay: 1.8 + idx * 1.2 }}
+                            >
+                              {answer.text}
+                            </motion.p>
+                            <motion.p
+                              className="text-white/50 text-sm font-body mt-2"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ delay: 2.0 + idx * 1.2 }}
+                            >
+                              - {answer.playerName}
+                            </motion.p>
                           </motion.div>
                         ))}
                       </div>
