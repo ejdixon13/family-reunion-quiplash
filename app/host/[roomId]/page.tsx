@@ -645,7 +645,7 @@ export default function HostPage() {
                               }}
                               animate={{ x: 0, opacity: 1, scale: 1, rotateY: 0 }}
                               transition={{
-                                delay: 1.0 + idx * 2.0, // First at 1s, second at 3s
+                                delay: 2.0 + idx * 2.0, // First at 2s, second at 4s
                                 type: 'spring',
                                 damping: 15,
                                 stiffness: 100,
@@ -661,7 +661,7 @@ export default function HostPage() {
                           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:block"
                           initial={{ scale: 0, rotate: -180 }}
                           animate={{ scale: 1, rotate: 0 }}
-                          transition={{ delay: 2.0, type: 'spring', damping: 10 }}
+                          transition={{ delay: 3.0, type: 'spring', damping: 10 }}
                         >
                           <span className="text-6xl font-display text-quiplash-pink">VS</span>
                         </motion.div>
@@ -677,7 +677,7 @@ export default function HostPage() {
                     transition={{
                       delay: gameState.currentVotingRound.isFinalRound
                         ? 1.5 + gameState.currentVotingRound.answers.length * 1.2 + 1
-                        : 4.0 // After both answers shown (1s + 3s + buffer)
+                        : 5.0 // After both answers shown (2s + 4s + buffer)
                     }}
                   >
                     Vote on your device now!
