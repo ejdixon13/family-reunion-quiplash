@@ -19,7 +19,7 @@ import { getDummyName, getRandomDummyAnswer } from "./dummyData";
 const DEFAULT_CONFIG: GameConfig = {
   answerTimeSeconds: 60,
   voteTimeSeconds: 20,
-  resultsTimeSeconds: 20, // Increased from 12 to show "Behind the Joke" longer
+  resultsTimeSeconds: 25, // 8s for results + time for conversation animation
   minPlayers: 3,
   maxActivePlayers: 8,
   roundsPerGame: 3,
