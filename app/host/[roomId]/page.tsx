@@ -226,8 +226,8 @@ export default function HostPage() {
     }
   }, [gameState?.phase, gameState?.currentVotingRound, audio]);
 
-  // Context reveal timing - show after 8 seconds in vote_results phase
-  // Give people time to see the answers and vote counts before showing the conversation
+  // Context reveal timing - show after results and Quiplash announcement
+  // Votes reveal at ~1s, Quiplash at ~0.5s, so wait 4s total to let it sink in
   useEffect(() => {
     const currentPromptId = gameState?.currentVotingRound?.promptId;
 
@@ -239,7 +239,7 @@ export default function HostPage() {
 
         const timer = setTimeout(() => {
           setShowContextOverlay(true);
-        }, 8000); // 8 seconds to view results before conversation
+        }, 4000); // 4 seconds after results to show conversation
 
         return () => clearTimeout(timer);
       }
@@ -695,16 +695,14 @@ export default function HostPage() {
                     )}
                   </motion.div>
 
+                  {/* Vote count hidden during voting - just show "Vote now!" */}
                   <motion.div
-                    className="text-white/60 font-body mt-4"
+                    className="text-white/60 font-body mt-4 text-xl"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.7 }}
                   >
-                    {gameState.currentVotingRound.votedPlayerIds.length} of{' '}
-                    {gameState.currentVotingRound.isFinalRound
-                      ? activePlayers.length
-                      : activePlayers.length - 2} votes cast
+                    Vote on your device now!
                   </motion.div>
                 </motion.div>
               )}
@@ -712,10 +710,12 @@ export default function HostPage() {
           </motion.div>
         )}
 
-        {/* Vote Results Phase - Reveal vote tallies dramatically */}
+        {/* Vote Results Phase - Reveal ALL votes at once */}
         {gameState.phase === 'vote_results' && gameState.currentVotingRound && (() => {
           const sortedAnswers = [...gameState.currentVotingRound.answers].sort((a, b) => b.votes - a.votes);
           const totalVotes = sortedAnswers.reduce((sum, a) => sum + a.votes, 0);
+          const winner = sortedAnswers[0];
+          const isQuiplash = winner && winner.votes === totalVotes && totalVotes > 0;
 
           return (
           <motion.div
@@ -724,7 +724,7 @@ export default function HostPage() {
             animate={{ opacity: 1 }}
           >
             <motion.div className="glass-card p-8">
-              {/* Prompt/image stays visible */}
+              {/* Prompt/image */}
               {gameState.currentVotingRound.prompt.isImagePrompt && gameState.currentVotingRound.prompt.imageUrl && (
                 <div className="mb-6">
                   <img
@@ -738,7 +738,26 @@ export default function HostPage() {
                 {gameState.currentVotingRound.prompt.prompt}
               </h2>
 
-              {/* Answers with vote reveals */}
+              {/* Quiplash announcement - shows first if applicable */}
+              {isQuiplash && (
+                <motion.div
+                  className="mb-8"
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{
+                    delay: 0.5,
+                    type: 'spring',
+                    damping: 8,
+                    stiffness: 150,
+                  }}
+                >
+                  <span className="text-6xl font-display text-quiplash-yellow">
+                    🎉 QUIPLASH! 🎉
+                  </span>
+                </motion.div>
+              )}
+
+              {/* All answers with votes - revealed together */}
               <div className={`grid gap-6 max-w-5xl mx-auto ${
                 gameState.currentVotingRound.isFinalRound
                   ? 'md:grid-cols-2 lg:grid-cols-3'
@@ -746,77 +765,46 @@ export default function HostPage() {
               }`}>
                 {sortedAnswers.map((answer, idx) => {
                     const isWinner = idx === 0 && answer.votes > 0;
-                    const isQuiplash = isWinner && answer.votes === totalVotes && totalVotes > 0;
-                    // Reveal votes one by one with dramatic timing
-                    const voteRevealDelay = 1.0 + idx * 1.5;
+                    const isThisQuiplash = isWinner && isQuiplash;
 
                     return (
                       <motion.div
                         key={idx}
                         className={`
-                          rounded-xl p-6 transition-all
-                          ${isQuiplash
+                          rounded-xl p-6
+                          ${isThisQuiplash
                             ? 'winner-card'
                             : isWinner
                             ? 'bg-green-500/30 ring-2 ring-green-400'
                             : 'bg-white/10'}
                         `}
-                        initial={{ scale: 1 }}
-                        animate={{
-                          scale: isWinner ? 1.05 : 1,
-                        }}
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: isWinner ? 1.05 : 1, opacity: 1 }}
                         transition={{
-                          delay: voteRevealDelay,
+                          delay: 1.0,
                           type: 'spring',
                           damping: 15,
                         }}
                       >
-                        {/* Answer text - already visible */}
-                        <p className={`text-2xl font-display mb-3 ${isQuiplash ? 'text-quiplash-blue' : 'text-white'}`}>
+                        {/* Answer text */}
+                        <p className={`text-2xl font-display mb-3 ${isThisQuiplash ? 'text-quiplash-blue' : 'text-white'}`}>
                           {answer.text}
                         </p>
-                        <p className={`text-lg font-body ${isQuiplash ? 'text-quiplash-blue/80' : 'text-white/80'}`}>
+                        <p className={`text-lg font-body ${isThisQuiplash ? 'text-quiplash-blue/80' : 'text-white/80'}`}>
                           - {answer.playerName}
                         </p>
 
-                        {/* Vote tally - dramatic reveal */}
+                        {/* Vote count - all revealed at once */}
                         <motion.div
-                          className="mt-4"
-                          initial={{ opacity: 0, scale: 0, y: 20 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          transition={{
-                            delay: voteRevealDelay,
-                            type: 'spring',
-                            damping: 12,
-                            stiffness: 100,
-                          }}
+                          className={`text-3xl font-display mt-4 ${isThisQuiplash ? 'text-quiplash-blue' : isWinner ? 'text-green-400' : 'text-quiplash-yellow'}`}
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: 1.2, type: 'spring' }}
                         >
-                          {isQuiplash && (
-                            <motion.div
-                              className="text-5xl font-display mb-2 text-quiplash-blue"
-                              initial={{ scale: 0, rotate: -10 }}
-                              animate={{ scale: 1, rotate: 0 }}
-                              transition={{
-                                delay: voteRevealDelay + 0.3,
-                                type: 'spring',
-                                damping: 10,
-                                stiffness: 200,
-                              }}
-                            >
-                              🎉 QUIPLASH!
-                            </motion.div>
-                          )}
-                          <motion.div
-                            className={`text-3xl font-display ${isQuiplash ? 'text-quiplash-blue' : isWinner ? 'text-green-400' : 'text-quiplash-yellow'}`}
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ delay: voteRevealDelay + 0.1, type: 'spring' }}
-                          >
-                            {answer.votes} vote{answer.votes !== 1 ? 's' : ''}
-                            <span className="text-lg ml-2">
-                              (+{answer.votes * (gameState.currentRound === 3 ? 200 : 100)}{isQuiplash ? ' +250' : ''} pts)
-                            </span>
-                          </motion.div>
+                          {answer.votes} vote{answer.votes !== 1 ? 's' : ''}
+                          <span className="text-lg ml-2">
+                            (+{answer.votes * (gameState.currentRound === 3 ? 200 : 100)}{isThisQuiplash ? ' +250' : ''} pts)
+                          </span>
                         </motion.div>
                       </motion.div>
                     );
@@ -829,7 +817,7 @@ export default function HostPage() {
               className="px-8 py-4 bg-gradient-to-r from-quiplash-purple to-quiplash-pink text-white rounded-xl text-xl font-display hover:scale-105 transition-transform shadow-lg shadow-purple-500/30"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 1.0 + sortedAnswers.length * 1.5 + 1 }}
+              transition={{ delay: 2.0 }}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
